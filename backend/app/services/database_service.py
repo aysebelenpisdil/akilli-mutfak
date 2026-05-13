@@ -150,6 +150,20 @@ class DatabaseService:
             )
             return result.rowcount > 0
 
+    async def get_user_interaction_map(self, user_id: str) -> dict[str, str]:
+        """Return {recipe_title: most_recent_interaction_type} for the given user."""
+        async with engine.connect() as conn:
+            result = await conn.execute(
+                text("""
+                    SELECT DISTINCT ON (recipe_title) recipe_title, interaction_type
+                    FROM recipe_interactions
+                    WHERE user_id = :user_id
+                    ORDER BY recipe_title, created_at DESC
+                """),
+                {"user_id": user_id},
+            )
+            return {row[0]: row[1] for row in result.fetchall()}
+
     async def get_fridge_ingredients(self, user_id: str) -> list[str]:
         async with engine.connect() as conn:
             result = await conn.execute(
@@ -172,6 +186,28 @@ class DatabaseService:
                                 ON CONFLICT DO NOTHING"""),
                         {"user_id": user_id, "ingredient": str(ing).strip()},
                     )
+
+
+    async def get_user_preferences(self, user_id: str) -> dict:
+        async with engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT dietary_preferences, excluded_ingredients FROM users WHERE id = :id"),
+                {"id": user_id},
+            )
+            row = result.mappings().fetchone()
+            if not row:
+                return {"dietary": {}, "excluded": []}
+            return {
+                "dietary": json.loads(row["dietary_preferences"]) if row["dietary_preferences"] else {},
+                "excluded": json.loads(row["excluded_ingredients"]) if row["excluded_ingredients"] else [],
+            }
+
+    async def save_user_preferences(self, user_id: str, dietary: dict, excluded: list) -> None:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("UPDATE users SET dietary_preferences = :d, excluded_ingredients = :e WHERE id = :id"),
+                {"d": json.dumps(dietary), "e": json.dumps(excluded), "id": user_id},
+            )
 
 
 database_service = DatabaseService()

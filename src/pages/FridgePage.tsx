@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFridge } from '../store/FridgeContext';
+import { useRecipes } from '../store/RecipeContext';
 import { checkHealth } from '../utils/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
     getIngredientDetails, 
     groupIngredientsByCategory,
@@ -13,6 +14,8 @@ import cleanedIngredients from '../data/cleanedIngredients.json';
 
 const FridgePage: React.FC = () => {
     const { fridgeIngredients, addIngredient, removeIngredient } = useFridge();
+    const { fetchRecipes } = useRecipes();
+    const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -26,7 +29,6 @@ const FridgePage: React.FC = () => {
         maxResults: 20,
         minQueryLength: 1,
         enableFuzzy: true,
-        enableSynonyms: true,
     });
 
     const trackIngredient = useTrackIngredient();
@@ -319,12 +321,15 @@ const FridgePage: React.FC = () => {
                 
                 {fridgeIngredients.length > 0 && (
                     <div className="mt-8 text-center">
-                        <Link to="/recipes" className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-105">
+                        <button
+                            onClick={() => { fetchRecipes(); navigate('/recipes'); }}
+                            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-105"
+                        >
                             Tarif Bul
                             <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
-                        </Link>
+                        </button>
                     </div>
                 )}
             </div>

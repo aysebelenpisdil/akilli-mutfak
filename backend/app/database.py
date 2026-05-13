@@ -105,4 +105,10 @@ async def init_db() -> None:
         for stmt in _SCHEMA_STATEMENTS:
             await conn.execute(text(stmt))
         await conn.execute(text(_VIEW_SQL))
+        await conn.execute(text(
+            "ALTER TABLE users DROP COLUMN IF EXISTS password_hash"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS excluded_ingredients TEXT"
+        ))
     logger.info("PostgreSQL schema initialized on Supabase")

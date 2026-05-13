@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { getFridgeIngredients, saveFridgeIngredients } from '../utils/api';
+import { getFridgeIngredients, saveFridgeIngredients, getPreferences, savePreferences } from '../utils/api';
 
 export interface DietaryPreferences {
     glutenFree: boolean;
@@ -25,6 +25,15 @@ const FridgeContext = createContext<FridgeContextType | undefined>(undefined);
 export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const prefSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Prevent save-on-fetch race: set true before setFridgeIngredients/setPrefs calls
+    const skipFridgeSaveRef = useRef(false);
+    const skipPrefsSaveRef = useRef(false);
+
+    const DEFAULT_DIETARY: DietaryPreferences = {
+        glutenFree: false, vegetarian: false, vegan: false,
+        dairyFree: false, nutAllergy: false,
+    };
 
     const [fridgeIngredients, setFridgeIngredients] = useState<string[]>(() => {
         const saved = localStorage.getItem('fridgeIngredients');
@@ -33,13 +42,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const [dietaryPreferences, setDietaryPreferencesState] = useState<DietaryPreferences>(() => {
         const saved = localStorage.getItem('dietaryPreferences');
-        return saved ? JSON.parse(saved) : {
-            glutenFree: false,
-            vegetarian: false,
-            vegan: false,
-            dairyFree: false,
-            nutAllergy: false
-        };
+        return saved ? JSON.parse(saved) : DEFAULT_DIETARY;
     });
 
     const [excludedIngredients, setExcludedIngredients] = useState<string[]>(() => {
@@ -48,27 +51,47 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
 
     const fetchFridgeFromApi = useCallback(async () => {
+        skipFridgeSaveRef.current = true; // set BEFORE state update so save effect skips
         try {
             const { ingredients } = await getFridgeIngredients();
             setFridgeIngredients(ingredients);
         } catch {
+            skipFridgeSaveRef.current = false;
             setFridgeIngredients([]);
+        }
+    }, []);
+
+    const fetchPreferencesFromApi = useCallback(async () => {
+        skipPrefsSaveRef.current = true;
+        try {
+            const { dietary, excluded } = await getPreferences();
+            if (Object.keys(dietary).length > 0) {
+                setDietaryPreferencesState({ ...DEFAULT_DIETARY, ...dietary } as DietaryPreferences);
+            }
+            setExcludedIngredients(excluded);
+        } catch {
+            skipPrefsSaveRef.current = false;
         }
     }, []);
 
     useEffect(() => {
         if (user) {
             fetchFridgeFromApi();
+            fetchPreferencesFromApi();
         } else {
             const saved = localStorage.getItem('fridgeIngredients');
             setFridgeIngredients(saved ? JSON.parse(saved) : []);
         }
-    }, [user?.id, fetchFridgeFromApi]);
+    }, [user?.id, fetchFridgeFromApi, fetchPreferencesFromApi]);
 
     useEffect(() => {
         if (!user) {
             localStorage.setItem('fridgeIngredients', JSON.stringify(fridgeIngredients));
             return;
+        }
+        if (skipFridgeSaveRef.current) {
+            skipFridgeSaveRef.current = false;
+            return; // data just fetched from DB — no need to write it back
         }
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
@@ -81,12 +104,24 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, [user?.id, fridgeIngredients]);
 
     useEffect(() => {
-        localStorage.setItem('dietaryPreferences', JSON.stringify(dietaryPreferences));
-    }, [dietaryPreferences]);
-
-    useEffect(() => {
-        localStorage.setItem('excludedIngredients', JSON.stringify(excludedIngredients));
-    }, [excludedIngredients]);
+        if (!user) {
+            localStorage.setItem('dietaryPreferences', JSON.stringify(dietaryPreferences));
+            localStorage.setItem('excludedIngredients', JSON.stringify(excludedIngredients));
+            return;
+        }
+        if (skipPrefsSaveRef.current) {
+            skipPrefsSaveRef.current = false;
+            return;
+        }
+        if (prefSaveTimeoutRef.current) clearTimeout(prefSaveTimeoutRef.current);
+        prefSaveTimeoutRef.current = setTimeout(() => {
+            savePreferences({ dietary: dietaryPreferences, excluded: excludedIngredients }).catch(() => {});
+            prefSaveTimeoutRef.current = null;
+        }, 500);
+        return () => {
+            if (prefSaveTimeoutRef.current) clearTimeout(prefSaveTimeoutRef.current);
+        };
+    }, [user?.id, dietaryPreferences, excludedIngredients]);
 
     const addIngredient = (ingredient: string) => {
         if (!fridgeIngredients.includes(ingredient)) {

@@ -1,16 +1,34 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { User } from '../types';
-import { getCurrentUser, requestMagicLink, verifyMagicLink, logoutUser } from '../utils/api';
+import { supabase } from '../lib/supabase';
+import { getCurrentUser, logoutUser } from '../utils/api';
+
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/api$/, '') ?? 'http://localhost:8000';
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (email: string) => Promise<{ dev_token?: string }>;
-    verify: (token: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<void>;
+    signup: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+async function bridgeToBackend(accessToken: string): Promise<User> {
+    const response = await fetch(`${API_BASE}/api/auth/supabase-session`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken }),
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail ?? 'Backend oturumu oluşturulamadı.');
+    }
+    const session = await response.json();
+    return session.user as User;
+}
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -31,23 +49,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         checkSession();
     }, [checkSession]);
 
-    const login = async (email: string) => {
-        const res = await requestMagicLink(email);
-        return { dev_token: res.dev_token };
+    const login = async (email: string, password: string) => {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw new Error(error.message);
+
+        const localUser = await bridgeToBackend(data.session!.access_token);
+        setUser(localUser);
     };
 
-    const verify = async (token: string) => {
-        const session = await verifyMagicLink(token);
-        setUser(session.user);
+    const signup = async (email: string, password: string) => {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw new Error(error.message);
+        if (!data.session) {
+            throw new Error('Kayıt başarılı! Supabase Dashboard\'dan "Confirm email" kapalı olduğunu doğrulayın.');
+        }
+        const localUser = await bridgeToBackend(data.session.access_token);
+        setUser(localUser);
     };
 
     const logout = async () => {
-        await logoutUser();
+        await supabase.auth.signOut();
+        await logoutUser().catch(() => { /* ignore */ });
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, verify, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
             {children}
         </AuthContext.Provider>
     );
@@ -55,8 +82,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
+    if (!context) throw new Error('useAuth must be used within an AuthProvider');
     return context;
 };

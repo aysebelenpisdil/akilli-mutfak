@@ -228,7 +228,7 @@ export const getSubstitutions = async (
  */
 export const checkHealth = async () => {
     try {
-        const response = await fetch('http://localhost:3001/health');
+        const response = await fetch('/health');
         return response.ok;
     } catch {
         return false;
@@ -238,6 +238,28 @@ export const checkHealth = async () => {
 // ── Auth API ──
 
 const AUTH_BASE = API_BASE_URL.replace('/api', '');
+
+export const signupUser = async (email: string, password: string): Promise<SessionInfo> => {
+    const response = await fetch(`${AUTH_BASE}/api/auth/signup`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await handleApiError(response);
+    return response.json();
+};
+
+export const signinUser = async (email: string, password: string): Promise<SessionInfo> => {
+    const response = await fetch(`${AUTH_BASE}/api/auth/signin`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) await handleApiError(response);
+    return response.json();
+};
 
 export const requestMagicLink = async (email: string): Promise<{ message: string; dev_token?: string }> => {
     const response = await fetch(`${AUTH_BASE}/api/auth/magic-link`, {
@@ -372,4 +394,30 @@ export const getInteractionHistory = async (
     );
     if (!response.ok) await handleApiError(response);
     return response.json();
+};
+
+// ── User Preferences API ──
+
+export interface PreferencesPayload {
+    dietary: Record<string, boolean>;
+    excluded: string[];
+}
+
+export const getPreferences = async (): Promise<PreferencesPayload> => {
+    const response = await fetch(`${API_BASE_URL}/user/preferences`, {
+        credentials: 'include',
+    });
+    if (response.status === 401) return { dietary: {}, excluded: [] };
+    if (!response.ok) await handleApiError(response);
+    return response.json();
+};
+
+export const savePreferences = async (payload: PreferencesPayload): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/user/preferences`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok && response.status !== 401) await handleApiError(response);
 };

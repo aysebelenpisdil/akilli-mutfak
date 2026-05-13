@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Response, Depends, HTTPException
 import logging
+import httpx
 from app.models.auth import (
     MagicLinkRequest, MagicLinkVerifyRequest,
     MagicLinkResponse, UserResponse, SessionInfo,
+    SupabaseSessionRequest,
 )
 from app.services.auth_service import auth_service
 from app.services.email_service import send_magic_link
@@ -12,6 +14,71 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _set_session_cookie(response: Response, session_id: str):
+    response.set_cookie(
+        key="session_id",
+        value=session_id,
+        httponly=True,
+        samesite="lax",
+        secure=(settings.NODE_ENV != "development"),
+        max_age=settings.SESSION_EXPIRY_DAYS * 24 * 3600,
+    )
+
+
+@router.post("/supabase-session", response_model=SessionInfo)
+async def create_supabase_session(body: SupabaseSessionRequest, response: Response):
+    """
+    Validate a Supabase access token, find/create a local user, and issue a session cookie.
+    Called by the frontend immediately after supabase.auth.signInWithPassword succeeds.
+    """
+    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Supabase yapılandırması eksik. SUPABASE_URL ve SUPABASE_ANON_KEY gerekli.",
+        )
+
+    # Validate token with Supabase Auth API
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{settings.SUPABASE_URL}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {body.access_token}",
+                    "apikey": settings.SUPABASE_ANON_KEY,
+                },
+            )
+    except Exception as exc:
+        logger.error(f"Supabase token validation failed: {exc}")
+        raise HTTPException(status_code=503, detail="Supabase bağlantısı kurulamadı.")
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Geçersiz veya süresi dolmuş Supabase token.")
+
+    supabase_user = resp.json()
+    email = supabase_user.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Token içinde e-posta bulunamadı.")
+
+    # Find or create local user
+    user = await auth_service.create_or_get_user(email)
+
+    # Create local session → set cookie
+    session_id = await auth_service.create_session(user["id"])
+    _set_session_cookie(response, session_id)
+    session_data = await auth_service.validate_session(session_id)
+
+    logger.info(f"Supabase session created for {email}")
+    return SessionInfo(
+        user=UserResponse(
+            id=user["id"],
+            email=user["email"],
+            display_name=user.get("display_name"),
+            created_at=user["created_at"],
+        ),
+        expires_at=session_data["session_expires_at"],
+    )
 
 
 @router.post("/magic-link", response_model=MagicLinkResponse)
@@ -44,16 +111,7 @@ async def verify_magic_link(body: MagicLinkVerifyRequest, response: Response):
         raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş bağlantı")
 
     session_id = await auth_service.create_session(user["id"])
-
-    response.set_cookie(
-        key="session_id",
-        value=session_id,
-        httponly=True,
-        samesite="lax",
-        secure=(settings.NODE_ENV != "development"),
-        max_age=settings.SESSION_EXPIRY_DAYS * 24 * 3600,
-    )
-
+    _set_session_cookie(response, session_id)
     session_data = await auth_service.validate_session(session_id)
 
     return SessionInfo(
@@ -83,5 +141,6 @@ async def get_me(user: dict = Depends(get_current_user)):
 @router.post("/logout")
 async def logout(response: Response, user: dict = Depends(get_current_user)):
     response.delete_cookie("session_id")
+    await auth_service.logout(user.get("session_id", ""))
     logger.info(f"User {user['email']} logged out")
     return {"message": "Çıkış yapıldı"}

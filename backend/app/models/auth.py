@@ -1,6 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
 
 
 class MagicLinkRequest(BaseModel):
@@ -26,3 +25,7 @@ class SessionInfo(BaseModel):
 class MagicLinkResponse(BaseModel):
     message: str
     dev_token: Optional[str] = None
+
+
+class SupabaseSessionRequest(BaseModel):
+    access_token: str

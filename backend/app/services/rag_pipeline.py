@@ -1,7 +1,6 @@
 """
 RAG Pipeline Service
-Coordinates Retriever (FAISS) → Reranker → Generator (LLM) pipeline
-Provides end-to-end recipe recommendation with explanations
+Coordinates Retriever (FAISS) → Reranker → Personalization → Generator (LLM) pipeline
 """
 
 import logging
@@ -13,18 +12,27 @@ from app.services.llm_service import llm_service
 from app.services.recipe_service import recipe_service
 from app.models.recipe import Recipe, RecipeWithMatch, MatchScore
 
-# Setup logger
 logger = logging.getLogger(__name__)
+
+# Score delta applied per interaction type (added to cross-encoder score)
+_HISTORY_ADJUSTMENTS: Dict[str, float] = {
+    "like":  0.20,
+    "cook":  0.25,
+    "save":  0.10,
+    "view":  0.00,
+    "skip": -0.30,
+}
 
 
 class RAGPipeline:
     """
-    RAG Pipeline coordinating 3 components:
+    RAG Pipeline:
     1. Retriever (FAISS) - Vector similarity search
     2. Reranker (Cross-encoder) - Contextual re-ranking
-    3. Generator (Gemini LLM) - Explanation generation
+    3. Personalization - History-based score adjustment
+    4. Generator (Gemini LLM) - Explanation generation with memory
     """
-    
+
     def __init__(
         self,
         faiss_service=faiss_service,
@@ -38,155 +46,110 @@ class RAGPipeline:
         self.reranker = reranker_service
         self.generator = llm_service
         self.recipe_service = recipe_service
-    
-    def _retrieve(
-        self,
-        user_ingredients: List[str],
-        top_k: int = 50
-    ) -> List[Recipe]:
-        """
-        Step 1: Retrieve recipes using FAISS vector search
-        
-        Args:
-            user_ingredients: List of ingredient names
-            top_k: Number of recipes to retrieve
-            
-        Returns:
-            List of Recipe objects from FAISS search
-        """
+
+    def _retrieve(self, user_ingredients: List[str], top_k: int = 50) -> List[Recipe]:
         try:
             logger.debug(f"Retrieving top-{top_k} recipes for ingredients: {user_ingredients}")
-            
+
             if not self.retriever.is_loaded():
                 logger.warning("FAISS index not loaded, falling back to string matching")
-                # Fallback to string matching
                 results = self.recipe_service.find_suitable_recipes(
-                    user_ingredients=user_ingredients,
-                    use_vector_search=False,
-                    top_k=top_k
+                    user_ingredients=user_ingredients, use_vector_search=False, top_k=top_k
                 )
-                # Convert RecipeWithMatch to Recipe
                 return [Recipe(**recipe.dict()) for recipe in results]
-            
-            # Use FAISS vector search
+
             distances, indices = self.retriever.search_by_ingredients(
                 ingredients=user_ingredients,
                 k=min(top_k, self.recipe_service.get_total_count()),
                 embedding_service=self.embedder
             )
-            
-            # Get recipes from indices
+
             all_recipes = self.recipe_service.get_all_recipes(
                 limit=self.recipe_service.get_total_count()
             )
-            
-            retrieved_recipes = []
-            for idx in indices:
-                if idx < len(all_recipes):
-                    retrieved_recipes.append(all_recipes[idx])
-            
+            retrieved_recipes = [all_recipes[idx] for idx in indices if idx < len(all_recipes)]
             logger.debug(f"Retrieved {len(retrieved_recipes)} recipes from FAISS")
             return retrieved_recipes
-            
+
         except Exception as e:
             logger.error(f"Error in retrieval step: {e}", exc_info=True)
             logger.warning("Falling back to string matching")
-            # Fallback to string matching
             results = self.recipe_service.find_suitable_recipes(
-                user_ingredients=user_ingredients,
-                use_vector_search=False,
-                top_k=top_k
+                user_ingredients=user_ingredients, use_vector_search=False, top_k=top_k
             )
             return [Recipe(**recipe.dict()) for recipe in results]
-    
+
     def _rerank(
         self,
         user_ingredients: List[str],
         recipes: List[Recipe],
         top_k: int = 10
     ) -> List[Tuple[Recipe, float]]:
-        """
-        Step 2: Re-rank retrieved recipes using cross-encoder
-        
-        Args:
-            user_ingredients: List of ingredient names
-            recipes: List of Recipe objects from retrieval
-            top_k: Number of top recipes to return
-            
-        Returns:
-            List of tuples (Recipe, relevance_score) sorted by score
-        """
         try:
             if not recipes:
                 logger.warning("No recipes to rerank")
                 return []
-            
+
             logger.debug(f"Reranking {len(recipes)} recipes to top-{top_k}")
-            
-            # Use reranker service
             reranked_results = self.reranker.rerank_by_ingredients(
-                ingredients=user_ingredients,
-                recipes=recipes,
-                top_k=top_k
+                ingredients=user_ingredients, recipes=recipes, top_k=top_k
             )
-            
             logger.debug(f"Reranking completed: {len(reranked_results)} top results")
             return reranked_results
-            
+
         except Exception as e:
             logger.error(f"Error in reranking step: {e}", exc_info=True)
             logger.warning("Falling back to original order")
-            # Fallback: return recipes with dummy scores
             return [(recipe, 1.0) for recipe in recipes[:top_k]]
-    
+
+    def _apply_history_scores(
+        self,
+        reranked: List[Tuple[Recipe, float]],
+        user_history: Dict[str, str],
+    ) -> List[Tuple[Recipe, float]]:
+        """Adjust cross-encoder scores using per-recipe interaction history, then re-sort."""
+        adjusted = []
+        for recipe, score in reranked:
+            interaction = user_history.get(recipe.Title)
+            delta = _HISTORY_ADJUSTMENTS.get(interaction, 0.0) if interaction else 0.0
+            if delta != 0.0:
+                logger.debug(f"[personalization] {recipe.Title}: {score:.3f} + {delta:+.2f} ({interaction})")
+            adjusted.append((recipe, score + delta))
+        adjusted.sort(key=lambda x: x[1], reverse=True)
+        return adjusted
+
     def _generate(
         self,
         user_ingredients: List[str],
         reranked_recipes: List[Tuple[Recipe, float]],
         user_preferences: Optional[Dict[str, Any]] = None,
-        excluded_ingredients: Optional[List[str]] = None
+        excluded_ingredients: Optional[List[str]] = None,
+        user_history: Optional[Dict[str, str]] = None,
     ) -> Optional[str]:
-        """
-        Step 3: Generate explanation using Gemini LLM
-        
-        Args:
-            user_ingredients: List of ingredient names
-            reranked_recipes: List of (Recipe, score) tuples
-            user_preferences: Dietary preferences dict
-            excluded_ingredients: List of excluded ingredients
-            
-        Returns:
-            Explanation text or None if generation fails
-        """
         try:
             if not reranked_recipes:
                 logger.warning("No recipes provided for explanation generation")
                 return None
-            
-            # Extract recipes from tuples
+
             recipes = [recipe for recipe, score in reranked_recipes]
-            
             logger.debug(f"Generating explanation for {len(recipes)} recipes")
-            
-            # Use LLM service
+
             explanation = self.generator.generate_explanation(
                 user_ingredients=user_ingredients,
                 recommended_recipes=recipes,
                 user_preferences=user_preferences,
-                excluded_ingredients=excluded_ingredients
+                excluded_ingredients=excluded_ingredients,
+                user_history=user_history,
             )
-            
+
             if explanation:
                 logger.debug(f"Explanation generated: {len(explanation)} characters")
-            else:
-                logger.debug("No explanation generated (LLM service unavailable)")
-            
             return explanation
-            
+
         except Exception as e:
             logger.error(f"Error in generation step: {e}", exc_info=True)
             return None
-    
+
     def process(
         self,
         user_ingredients: List[str],
@@ -194,79 +157,76 @@ class RAGPipeline:
         excluded_ingredients: Optional[List[str]] = None,
         top_k: int = 10,
         explain: bool = True,
-        retrieval_top_k: int = 50
+        retrieval_top_k: int = 50,
+        user_id: Optional[str] = None,
+        user_history: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
-        Complete RAG pipeline: Retrieve → Rerank → Generate
-        
-        Args:
-            user_ingredients: List of ingredient names
-            user_preferences: Dietary preferences dict (vegan, glutenFree, etc.)
-            excluded_ingredients: List of excluded ingredients
-            top_k: Number of final recipes to return (after reranking)
-            explain: Whether to generate LLM explanation
-            retrieval_top_k: Number of recipes to retrieve before reranking
-            
-        Returns:
-            Dictionary with recipes, explanation, and metadata
-        """
-        logger.info(f"RAG pipeline started: {len(user_ingredients)} ingredients, top_k={top_k}")
+        Complete RAG pipeline: Retrieve → Rerank → Personalize → Generate
 
-        # Step 1: Retrieval (FAISS)
-        retrieved_recipes = self._retrieve(
-            user_ingredients=user_ingredients,
-            top_k=retrieval_top_k
+        user_history: {recipe_title: most_recent_interaction_type} — pre-fetched
+                      by the caller (route) from the database.
+        """
+        personalized = bool(user_history)
+        logger.info(
+            f"RAG pipeline started: {len(user_ingredients)} ingredients, "
+            f"top_k={top_k}, personalized={personalized}"
         )
-        
+
+        # Step 1: Retrieval
+        retrieved_recipes = self._retrieve(user_ingredients=user_ingredients, top_k=retrieval_top_k)
         if not retrieved_recipes:
-            logger.warning("No recipes retrieved, returning empty result")
             return {
                 "recipes": [],
                 "explanation": None,
                 "metadata": {
-                    "retrieval_count": 0,
-                    "reranked_count": 0,
-                    "pipeline_stages": ["retrieval"]
+                    "retrieval_count": 0, "reranked_count": 0,
+                    "pipeline_stages": ["retrieval"],
+                    "retriever_used": False, "reranker_used": False,
+                    "llm_used": False, "personalized": False,
                 }
             }
-        
-        # Step 2: Reranking (Cross-encoder)
+
+        # Step 2: Reranking
         reranked_results = self._rerank(
-            user_ingredients=user_ingredients,
-            recipes=retrieved_recipes,
-            top_k=top_k
+            user_ingredients=user_ingredients, recipes=retrieved_recipes, top_k=top_k
         )
-        
-        # Convert to RecipeWithMatch format
+
+        # Step 3: Personalization (history-based score adjustment)
+        if user_history:
+            reranked_results = self._apply_history_scores(reranked_results, user_history)
+
+        # Build RecipeWithMatch list
         final_recipes = []
         for recipe, score in reranked_results:
-            # Count matching ingredients (using recipe service's method)
-            # Access private method through recipe service instance
             recipe_ingredients_lower = recipe.Ingredients.lower()
-            matching_ingredients = []
-            for ingredient in user_ingredients:
-                if ingredient.lower() in recipe_ingredients_lower:
-                    matching_ingredients.append(ingredient)
-            
+            matching_ingredients = [
+                ing for ing in user_ingredients
+                if ing.lower() in recipe_ingredients_lower
+            ]
             final_recipes.append(
                 RecipeWithMatch(
                     **recipe.dict(),
                     matchingCount=len(matching_ingredients),
-                    matchingIngredients=matching_ingredients
+                    matchingIngredients=matching_ingredients,
                 )
             )
-        
-        # Step 3: Generation (LLM explanation)
+
+        # Step 4: Generation
         explanation = None
         if explain:
             explanation = self._generate(
                 user_ingredients=user_ingredients,
                 reranked_recipes=reranked_results,
                 user_preferences=user_preferences,
-                excluded_ingredients=excluded_ingredients
+                excluded_ingredients=excluded_ingredients,
+                user_history=user_history,
             )
-        
-        logger.info(f"RAG pipeline completed: {len(final_recipes)} recipes, explanation={'yes' if explanation else 'no'}")
+
+        logger.info(
+            f"RAG pipeline completed: {len(final_recipes)} recipes, "
+            f"explanation={'yes' if explanation else 'no'}"
+        )
 
         total_ingredients = len(user_ingredients)
         best_match = max((r.matchingCount for r in final_recipes), default=0)
@@ -276,6 +236,12 @@ class RAGPipeline:
             label=f"{best_match}/{total_ingredients} malzeme mevcut",
         )
 
+        stages = ["retrieval", "reranking"]
+        if personalized:
+            stages.append("personalization")
+        if explain:
+            stages.append("generation")
+
         return {
             "recipes": final_recipes,
             "explanation": explanation,
@@ -283,14 +249,13 @@ class RAGPipeline:
             "metadata": {
                 "retrieval_count": len(retrieved_recipes),
                 "reranked_count": len(reranked_results),
-                "pipeline_stages": ["retrieval", "reranking"] + (["generation"] if explain else []),
+                "pipeline_stages": stages,
                 "retriever_used": self.retriever.is_loaded(),
                 "reranker_used": self.reranker.is_loaded(),
-                "llm_used": self.generator.is_available()
+                "llm_used": self.generator.is_available(),
+                "personalized": personalized,
             }
         }
 
 
-# Singleton instance
 rag_pipeline = RAGPipeline()
-

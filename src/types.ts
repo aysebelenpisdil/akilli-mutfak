@@ -49,6 +49,7 @@ export interface RAGMetadata {
     retriever_used: boolean;
     reranker_used: boolean;
     llm_used: boolean;
+    personalized?: boolean;
 }
 
 /**

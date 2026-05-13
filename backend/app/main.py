@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 import logging
 from app.config import settings
-from app.routes import recipes, auth, feedback, fridge
+from app.routes import recipes, auth, feedback, fridge, user_preferences
 from app.services.database_service import database_service
 from app.services.faiss_service import faiss_service
 from app.services.reranker_service import reranker_service
@@ -166,6 +166,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(recipes.router, prefix="/api")
 app.include_router(feedback.router, prefix="/api")
 app.include_router(fridge.router, prefix="/api")
+app.include_router(user_preferences.router, prefix="/api")
 
 
 # Root endpoint

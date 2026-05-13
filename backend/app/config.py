@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = ""
 
+    # Supabase Auth (frontend doğrulama için)
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+
     # CORS — add comma-separated origins in .env for custom clients (e.g. Capacitor iOS)
     CORS_EXTRA_ORIGINS: str = ""
 

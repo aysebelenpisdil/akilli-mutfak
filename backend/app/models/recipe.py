@@ -73,6 +73,7 @@ class RAGMetadata(BaseModel):
     retriever_used: bool
     reranker_used: bool
     llm_used: bool
+    personalized: bool = False
 
 
 class MatchScore(BaseModel):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 import time
 import logging
@@ -21,6 +21,8 @@ from app.services.faiss_service import faiss_service
 from app.services.embedding_service import embedding_service
 from app.services.rag_pipeline import rag_pipeline
 from app.services.llm_service import llm_service
+from app.services.database_service import database_service
+from app.middleware.auth import get_optional_user
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -221,38 +223,22 @@ async def search_recipes(request: RecipeSearchRequest):
 
 
 @router.post("/rag-recommend", response_model=RAGRecommendResponse)
-async def rag_recommend(request: RAGRecommendRequest):
+async def rag_recommend(
+    request: RAGRecommendRequest,
+    user: Optional[dict] = Depends(get_optional_user),
+):
     """
-    RAG-based recipe recommendations with explanations
-    
-    Complete pipeline: Retrieve (FAISS) → Rerank (Cross-encoder) → Generate (Gemini LLM)
-    
-    Request body:
-    {
-        "ingredients": ["chicken", "pasta", "tomato"],
-        "preferences": {
-            "vegan": false,
-            "glutenFree": false,
-            "dairyFree": false
-        },
-        "excluded_ingredients": ["mushroom"],
-        "explain": true,
-        "top_k": 10,
-        "retrieval_top_k": 50
-    }
-    
-    Response includes:
-    - recipes: Top-k reranked recipes
-    - explanation: LLM-generated explanation (if explain=true)
-    - metadata: Pipeline execution details
+    RAG-based recipe recommendations with personalization.
+
+    Complete pipeline: Retrieve (FAISS) → Rerank → Personalize → Generate (Gemini LLM)
+    Personalization is applied when the request comes from a logged-in user.
     """
     start_time = time.time()
-    
+
     try:
         if not request.ingredients:
             raise HTTPException(status_code=400, detail="Malzeme listesi gerekli")
-        
-        # Prepare preferences dict
+
         preferences_dict = None
         if request.preferences:
             preferences_dict = {
@@ -260,43 +246,57 @@ async def rag_recommend(request: RAGRecommendRequest):
                 "vegetarian": request.preferences.vegetarian or False,
                 "glutenFree": request.preferences.glutenFree or False,
                 "dairyFree": request.preferences.dairyFree or False,
-                "nutAllergy": request.preferences.nutAllergy or False
+                "nutAllergy": request.preferences.nutAllergy or False,
             }
-        
+
         top_k = request.top_k if request.top_k is not None else 10
         retrieval_top_k = request.retrieval_top_k if request.retrieval_top_k is not None else 50
         explain = request.explain if request.explain is not None else True
-        
+
+        # Fetch interaction history for logged-in users
+        user_history: Optional[dict] = None
+        user_id: Optional[str] = None
+        if user:
+            user_id = user["id"]
+            try:
+                user_history = await database_service.get_user_interaction_map(user_id)
+                logger.info(
+                    f"[{user['email']}] RAG personalized: {len(user_history)} known recipes"
+                )
+            except Exception as exc:
+                logger.warning(f"Could not fetch user history for personalization: {exc}")
+
         logger.info(
-            f"RAG recommendation request: {len(request.ingredients)} ingredients, "
-            f"top_k={top_k}, explain={explain}"
+            f"RAG recommendation: {len(request.ingredients)} ingredients, "
+            f"top_k={top_k}, explain={explain}, personalized={bool(user_history)}"
         )
-        
-        # Process through RAG pipeline
+
         result = rag_pipeline.process(
             user_ingredients=request.ingredients,
             user_preferences=preferences_dict,
             excluded_ingredients=request.excluded_ingredients or [],
             top_k=top_k,
             explain=explain,
-            retrieval_top_k=retrieval_top_k
+            retrieval_top_k=retrieval_top_k,
+            user_id=user_id,
+            user_history=user_history,
         )
-        
+
         process_time = time.time() - start_time
         logger.info(
             f"RAG pipeline completed in {process_time:.3f}s: "
             f"{len(result['recipes'])} recipes, "
             f"explanation={'yes' if result['explanation'] else 'no'}"
         )
-        
+
         return RAGRecommendResponse(
-            recipes=result['recipes'],
-            explanation=result['explanation'],
-            metadata=result['metadata'],
-            count=len(result['recipes']),
-            match_score=result.get('match_score'),
+            recipes=result["recipes"],
+            explanation=result["explanation"],
+            metadata=result["metadata"],
+            count=len(result["recipes"]),
+            match_score=result.get("match_score"),
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

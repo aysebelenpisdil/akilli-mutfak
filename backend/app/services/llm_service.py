@@ -96,26 +96,44 @@ class LLMService:
                 except Exception:
                     raise
 
+    # Interaction type → human-readable Turkish label for prompt injection
+    _HISTORY_LABELS: Dict[str, str] = {
+        "like": "beğendi",
+        "cook": "daha önce pişirdi",
+        "save": "kaydetmişti",
+        "skip": "atladı",
+    }
+
     def _build_prompt(
         self,
         user_ingredients: List[str],
         recommended_recipes: List[Recipe],
         user_preferences: Optional[Dict[str, Any]] = None,
-        excluded_ingredients: Optional[List[str]] = None
+        excluded_ingredients: Optional[List[str]] = None,
+        user_history: Optional[Dict[str, str]] = None,
     ) -> str:
-        """Build prompt for Gemini API"""
-        system_prompt = """Sen profesyonel bir Türk şefisin. Kullanıcıya elindeki malzemelere en uygun tarifi neden önerdiğini, malzemelerin uyumunu vurgulayarak, samimi ve iştah açıcı bir Türkçe ile açıkla. Teknik terimlerden kaçın.
+        """Build prompt for Gemini API, optionally injecting user history context."""
+        history_note = ""
+        if user_history:
+            liked_titles = [t for t, a in user_history.items() if a in ("like", "cook", "save")]
+            skipped_titles = [t for t, a in user_history.items() if a == "skip"]
+            if liked_titles:
+                history_note += f"\nKullanıcı geçmişte şu tarifleri beğendi/pişirdi: {', '.join(liked_titles[:5])}."
+            if skipped_titles:
+                history_note += f"\nKullanıcı şu tarifleri daha önce atladı (ilgilenmedi): {', '.join(skipped_titles[:5])}."
+
+        system_prompt = f"""Sen profesyonel bir Türk şefisin ve kullanıcının yemek alışkanlıklarını hatırlayan kişisel şefisin. Kullanıcıya elindeki malzemelere en uygun tarifi neden önerdiğini, malzemelerin uyumunu vurgulayarak, samimi ve iştah açıcı bir Türkçe ile açıkla.{history_note}
 
 Kurallar:
 - Türkçe yaz, samimi ve sıcak bir dil kullan.
 - Düz metin yaz, markdown işaretleri (###, **, * vb.) KULLANMA.
 - En fazla 3-4 cümle yaz. Kısa, öz ve iştah açıcı ol.
 - Malzemelerin birbirleriyle neden iyi uyum sağladığını vurgula.
+- Eğer kullanıcının daha önce beğendiği tarifler önerildiyse bunu sıcak bir dille belirt.
 - Her tarifi tek tek listeleme, genel bir şef notu ver.
 """
 
-        context_parts = []
-        context_parts.append(f"**Mevcut Malzemeler:** {', '.join(user_ingredients)}")
+        context_parts = [f"**Mevcut Malzemeler:** {', '.join(user_ingredients)}"]
 
         if user_preferences:
             active_prefs = []
@@ -129,7 +147,6 @@ Kurallar:
                 active_prefs.append('Süt Ürünü İçermez')
             if user_preferences.get('nutAllergy'):
                 active_prefs.append('Kuruyemiş İçermez')
-
             if active_prefs:
                 context_parts.append(f"**Diyet Tercihleri:** {', '.join(active_prefs)}")
 
@@ -140,7 +157,13 @@ Kurallar:
         for i, recipe in enumerate(recommended_recipes[:3], 1):
             ingredients_text = recipe.Cleaned_Ingredients or recipe.Ingredients
             ingredients_clean = ingredients_text.replace('[', '').replace(']', '').replace("'", '')
-            recipes_text += f"\n{i}. {recipe.Title} - Malzemeler: {ingredients_clean[:200]}\n"
+            recipe_note = ""
+            if user_history:
+                interaction = user_history.get(recipe.Title)
+                label = self._HISTORY_LABELS.get(interaction, "")
+                if label:
+                    recipe_note = f" [Kullanıcı bu tarifi daha önce {label}]"
+            recipes_text += f"\n{i}. {recipe.Title}{recipe_note} - Malzemeler: {ingredients_clean[:200]}\n"
 
         prompt = f"""{system_prompt}
 ---
@@ -160,7 +183,8 @@ Bu tariflerin neden önerildiğini kısaca özetle. Düz metin yaz, markdown kul
         user_ingredients: List[str],
         recommended_recipes: List[Recipe],
         user_preferences: Optional[Dict[str, Any]] = None,
-        excluded_ingredients: Optional[List[str]] = None
+        excluded_ingredients: Optional[List[str]] = None,
+        user_history: Optional[Dict[str, str]] = None,
     ) -> Optional[str]:
         """Generate explanation for recipe recommendations using Gemini API"""
         if not recommended_recipes:
@@ -187,7 +211,8 @@ Bu tariflerin neden önerildiğini kısaca özetle. Düz metin yaz, markdown kul
                 user_ingredients=user_ingredients,
                 recommended_recipes=recommended_recipes,
                 user_preferences=user_preferences,
-                excluded_ingredients=excluded_ingredients
+                excluded_ingredients=excluded_ingredients,
+                user_history=user_history,
             )
 
             logger.debug(f"Generating explanation for {len(recommended_recipes)} recipes")
