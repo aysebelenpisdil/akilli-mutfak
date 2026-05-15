@@ -32,7 +32,8 @@ async def add_process_time_header(request: Request, call_next):
 
 # CORS middleware — includes Capacitor/Ionic origins for iOS build
 _cors_origins = [
-        *settings.FRONTEND_URL.split(","),
+        "https://akillimutfak.me",
+        "https://www.akillimutfak.me",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "capacitor://localhost",   # Capacitor iOS
