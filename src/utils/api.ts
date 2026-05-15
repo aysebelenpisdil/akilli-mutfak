@@ -7,7 +7,7 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export interface ApiError {
-    message: string;
+    message: string
     status: number;
 }
 
@@ -228,7 +228,7 @@ export const getSubstitutions = async (
  */
 export const checkHealth = async () => {
     try {
-        const response = await fetch('/health');
+                const response = await fetch(`${API_BASE_URL}/health`);
         return response.ok;
     } catch {
         return false;
