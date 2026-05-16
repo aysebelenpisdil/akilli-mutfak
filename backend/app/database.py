@@ -14,7 +14,7 @@ engine = create_async_engine(
     _url,
     echo=False,
     pool_pre_ping=True,
-    connect_args={"statement_cache_size": 0},
+            connect_args={"prepared_statement_cache_size": 0},
 )
 
 _SCHEMA_STATEMENTS = [
