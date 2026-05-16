@@ -8,9 +8,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Convert generic postgresql:// URL to the asyncpg dialect
-_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-import re
-_url = re.sub(r'[?&]sslmode=[^&]*', '', _url)
+_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1).split("?")[0]
 
 engine = create_async_engine(
     _url,
