@@ -203,7 +203,10 @@ const RecipeDetailPage: React.FC = () => {
                                     const cleanName = cleanedList[idx] || '';
                                     const kcal = getIngredientCalories(cleanName);
                                     const isMissing = missingIngredients.some(m => m.toLowerCase() === cleanName.toLowerCase());
-                                    const subs = substitutions?.[cleanName];
+                                    const subsKey = substitutions
+                                        ? Object.keys(substitutions).find(k => k.toLowerCase() === cleanName.toLowerCase())
+                                        : undefined;
+                                    const subs: string[] | undefined = subsKey ? substitutions![subsKey] : undefined;
 
                                     return (
                                         <li key={idx}>
@@ -246,7 +249,7 @@ const RecipeDetailPage: React.FC = () => {
                             </ul>
 
                             {/* Substitution Button */}
-                            {missingIngredients.length > 0 && !substitutions && (
+                            {missingIngredients.length > 0 && substitutions === null && (
                                 <div className="mt-6 pt-4 border-t border-green-200">
                                     <button
                                         onClick={handleSubstitution}
@@ -270,6 +273,11 @@ const RecipeDetailPage: React.FC = () => {
                                     {subError && (
                                         <p className="mt-2 text-xs text-red-600">{subError}</p>
                                     )}
+                                </div>
+                            )}
+                            {missingIngredients.length > 0 && substitutions !== null && Object.keys(substitutions).length === 0 && (
+                                <div className="mt-6 pt-4 border-t border-green-200">
+                                    <p className="text-xs text-amber-600">İkame önerileri şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin.</p>
                                 </div>
                             )}
 

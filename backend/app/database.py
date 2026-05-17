@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from uuid import uuid4
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 from app.config import settings
@@ -14,7 +15,10 @@ engine = create_async_engine(
     _url,
     echo=False,
     pool_pre_ping=True,
-            connect_args={"prepared_statement_cache_size": 0},
+    connect_args={
+        "statement_cache_size": 0,
+        "prepared_statement_name_func": lambda _: f"__asyncpg_{uuid4().hex}__",
+    },
 )
 
 _SCHEMA_STATEMENTS = [
