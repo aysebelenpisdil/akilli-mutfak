@@ -228,7 +228,7 @@ export const getSubstitutions = async (
  */
 export const checkHealth = async () => {
     try {
-                const response = await fetch(`${API_BASE_URL}/health`);
+        const response = await fetch(`${AUTH_BASE}/health`);
         return response.ok;
     } catch {
         return false;
