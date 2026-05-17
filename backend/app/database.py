@@ -17,7 +17,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     connect_args={
         "statement_cache_size": 0,
-        "prepared_statement_name_func": lambda _: f"__asyncpg_{uuid4().hex}__",
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4().hex}__",
     },
 )
 

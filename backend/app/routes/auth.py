@@ -61,13 +61,15 @@ async def create_supabase_session(body: SupabaseSessionRequest, response: Respon
     if not email:
         raise HTTPException(status_code=400, detail="Token içinde e-posta bulunamadı.")
 
-    # Find or create local user
-    user = await auth_service.create_or_get_user(email)
-
-    # Create local session → set cookie
-    session_id = await auth_service.create_session(user["id"])
-    _set_session_cookie(response, session_id)
-    session_data = await auth_service.validate_session(session_id)
+    # Find or create local user, issue session
+    try:
+        user = await auth_service.create_or_get_user(email)
+        session_id = await auth_service.create_session(user["id"])
+        _set_session_cookie(response, session_id)
+        session_data = await auth_service.validate_session(session_id)
+    except Exception as exc:
+        logger.error(f"DB error in supabase-session for {email}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Veritabanı hatası. Lütfen tekrar deneyin.")
 
     logger.info(f"Supabase session created for {email}")
     return SessionInfo(
