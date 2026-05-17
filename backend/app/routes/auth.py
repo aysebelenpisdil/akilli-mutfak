@@ -17,12 +17,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _set_session_cookie(response: Response, session_id: str):
+    is_production = settings.NODE_ENV != "development"
     response.set_cookie(
         key="session_id",
         value=session_id,
         httponly=True,
-        samesite="lax",
-        secure=(settings.NODE_ENV != "development"),
+        samesite="none" if is_production else "lax",
+        secure=is_production,
         max_age=settings.SESSION_EXPIRY_DAYS * 24 * 3600,
     )
 
