@@ -27,10 +27,6 @@ backend/.env
 *.db-wal
 *.db-shm
 
-# FAISS index (generated)
-*.faiss
-backend/data/recipe_index.faiss
-
 # Python
 __pycache__/
 *.py[cod]

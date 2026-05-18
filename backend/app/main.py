@@ -94,35 +94,42 @@ async def startup_event():
         logger.error(f"❌ Error loading FAISS index: {e}", exc_info=True)
         logger.warning("   Continuing with string matching fallback")
     
-    # Step 2: Initialize Reranker (lazy load - will load on first use)
+    # Step 1.5: Pre-load embedding model (used for FAISS query encoding)
+    try:
+        logger.info("🔤 Pre-loading embedding model...")
+        embedding_service._load_model()
+        logger.info(f"✅ Embedding model loaded: {embedding_service.model_name}")
+    except Exception as e:
+        logger.warning(f"⚠️  Embedding model pre-load failed: {e}")
+
+    # Step 2: Pre-load Reranker model at startup (avoids cold-start timeout on first request)
     try:
         if reranker_service.enabled:
-            logger.info("🔄 Reranker service initialized (will load on first use)")
-            logger.info(f"   Model: {reranker_service.model_name}")
+            logger.info(f"🔄 Pre-loading reranker model: {reranker_service.model_name} ...")
+            reranker_service._load_model()
+            logger.info("✅ Reranker model loaded")
         else:
             logger.info("⚠️  Reranker is disabled in config")
     except Exception as e:
-        logger.warning(f"⚠️  Reranker initialization warning: {e}")
-    
-    # Step 3: Initialize LLM service (lazy load - will load on first use)
+        logger.warning(f"⚠️  Reranker pre-load failed (will retry on first request): {e}")
+
+    # Step 3: Initialize LLM service (API-based, no local model to load)
     try:
         if llm_service.enabled:
             if llm_service.api_key:
-                logger.info("🤖 LLM service initialized (will load on first use)")
-                logger.info(f"   Model: {llm_service.model_name}")
+                logger.info(f"🤖 LLM service ready: {llm_service.model_name}")
             else:
-                logger.warning("⚠️  GEMINI_API_KEY not found")
-                logger.warning("   LLM explanations will not be available")
+                logger.warning("⚠️  GEMINI_API_KEY not found — LLM explanations unavailable")
         else:
             logger.info("⚠️  LLM service is disabled in config")
     except Exception as e:
         logger.warning(f"⚠️  LLM initialization warning: {e}")
     
-    # Step 4: RAG Pipeline is already initialized (singleton)
-    logger.info("🔗 RAG Pipeline initialized")
+    # Step 4: RAG Pipeline summary
+    logger.info("🔗 RAG Pipeline ready")
     logger.info("   Components:")
-    logger.info(f"      - Retriever (FAISS): {'✅' if faiss_service.is_loaded() else '❌'}")
-    logger.info(f"      - Reranker: {'✅' if reranker_service.enabled else '❌'}")
+    logger.info(f"      - Retriever (FAISS): {'✅' if faiss_service.is_loaded() else '❌ NOT LOADED'}")
+    logger.info(f"      - Reranker: {'✅' if reranker_service.is_loaded() else '❌ NOT LOADED'}")
     logger.info(f"      - Generator (LLM): {'✅' if (llm_service.enabled and llm_service.api_key) else '❌'}")
     
     logger.info("✅ API startup completed - RAG Pipeline ready")
