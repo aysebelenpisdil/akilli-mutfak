@@ -8,6 +8,7 @@ from app.config import settings
 from app.routes import recipes, auth, feedback, fridge, user_preferences
 from app.services.database_service import database_service
 from app.services.faiss_service import faiss_service
+from app.services.embedding_service import embedding_service
 from app.services.reranker_service import reranker_service
 from app.services.llm_service import llm_service
 from app.services.rag_pipeline import rag_pipeline
