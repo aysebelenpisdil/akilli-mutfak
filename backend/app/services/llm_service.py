@@ -221,7 +221,7 @@ Bu tariflerin neden önerildiğini kısaca özetle. Düz metin yaz, markdown kul
                 temperature=self.temperature,
                 max_output_tokens=self.max_tokens,
             )
-            response = self._try_generate_with_retry(prompt, config)
+            response = self._try_generate_with_retry(prompt, config, max_retries=0)
             explanation = response.text.strip()
 
             logger.debug(f"Explanation generated: {len(explanation)} characters")
