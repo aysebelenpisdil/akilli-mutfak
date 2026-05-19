@@ -118,6 +118,21 @@ class RAGPipeline:
         adjusted.sort(key=lambda x: x[1], reverse=True)
         return adjusted
 
+    def _apply_cf_scores(
+        self,
+        reranked: List[Tuple[Recipe, float]],
+        cf_scores: Dict[str, float],
+    ) -> List[Tuple[Recipe, float]]:
+        """Benzer kullanıcıların tercihleriyle hesaplanan CF deltasını skora ekle."""
+        adjusted = []
+        for recipe, score in reranked:
+            delta = cf_scores.get(recipe.Title, 0.0)
+            if delta != 0.0:
+                logger.debug(f"[CF] {recipe.Title}: {score:.3f} + {delta:+.3f}")
+            adjusted.append((recipe, score + delta))
+        adjusted.sort(key=lambda x: x[1], reverse=True)
+        return adjusted
+
     def _generate(
         self,
         user_ingredients: List[str],
@@ -160,6 +175,7 @@ class RAGPipeline:
         retrieval_top_k: int = 50,
         user_id: Optional[str] = None,
         user_history: Optional[Dict[str, str]] = None,
+        cf_scores: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Any]:
         """
         Complete RAG pipeline: Retrieve → Rerank → Personalize → Generate
@@ -168,9 +184,10 @@ class RAGPipeline:
                       by the caller (route) from the database.
         """
         personalized = bool(user_history)
+        cf_used = bool(cf_scores)
         logger.info(
             f"RAG pipeline started: {len(user_ingredients)} ingredients, "
-            f"top_k={top_k}, personalized={personalized}"
+            f"top_k={top_k}, personalized={personalized}, cf={cf_used}"
         )
 
         # Step 1: Retrieval
@@ -192,9 +209,13 @@ class RAGPipeline:
             user_ingredients=user_ingredients, recipes=retrieved_recipes, top_k=top_k
         )
 
-        # Step 3: Personalization (history-based score adjustment)
+        # Step 3a: Personalization (direct interaction history)
         if user_history:
             reranked_results = self._apply_history_scores(reranked_results, user_history)
+
+        # Step 3b: Collaborative filtering (similar users' preferences)
+        if cf_scores:
+            reranked_results = self._apply_cf_scores(reranked_results, cf_scores)
 
         # Build RecipeWithMatch list
         final_recipes = []
@@ -239,6 +260,8 @@ class RAGPipeline:
         stages = ["retrieval", "reranking"]
         if personalized:
             stages.append("personalization")
+        if cf_used:
+            stages.append("collaborative_filtering")
         if explain:
             stages.append("generation")
 
@@ -254,6 +277,7 @@ class RAGPipeline:
                 "reranker_used": self.reranker.is_loaded(),
                 "llm_used": self.generator.is_available(),
                 "personalized": personalized,
+                "cf_used": cf_used,
             }
         }
 

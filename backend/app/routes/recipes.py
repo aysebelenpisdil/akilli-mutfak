@@ -22,6 +22,7 @@ from app.services.embedding_service import embedding_service
 from app.services.rag_pipeline import rag_pipeline
 from app.services.llm_service import llm_service
 from app.services.database_service import database_service
+from app.services.cf_service import cf_service
 from app.middleware.auth import get_optional_user
 
 # Setup logger
@@ -253,9 +254,10 @@ async def rag_recommend(
         retrieval_top_k = request.retrieval_top_k if request.retrieval_top_k is not None else 50
         explain = request.explain if request.explain is not None else True
 
-        # Fetch interaction history for logged-in users
+        # Fetch interaction history + CF scores for logged-in users
         user_history: Optional[dict] = None
         user_id: Optional[str] = None
+        cf_scores: Optional[dict] = None
         if user:
             user_id = user["id"]
             try:
@@ -265,6 +267,16 @@ async def rag_recommend(
                 )
             except Exception as exc:
                 logger.warning(f"Could not fetch user history for personalization: {exc}")
+
+            try:
+                all_titles = [r.Title for r in recipe_service.get_all_recipes(
+                    limit=recipe_service.get_total_count()
+                )]
+                cf_scores = await cf_service.get_cf_scores(user_id, all_titles)
+                if cf_scores:
+                    logger.info(f"[{user['email']}] CF: {len(cf_scores)} tarife skor eklendi")
+            except Exception as exc:
+                logger.warning(f"CF skorları hesaplanamadı: {exc}")
 
         logger.info(
             f"RAG recommendation: {len(request.ingredients)} ingredients, "
@@ -280,6 +292,7 @@ async def rag_recommend(
             retrieval_top_k=retrieval_top_k,
             user_id=user_id,
             user_history=user_history,
+            cf_scores=cf_scores,
         )
 
         process_time = time.time() - start_time

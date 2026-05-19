@@ -74,6 +74,7 @@ class RAGMetadata(BaseModel):
     reranker_used: bool
     llm_used: bool
     personalized: bool = False
+    cf_used: bool = False
 
 
 class MatchScore(BaseModel):
