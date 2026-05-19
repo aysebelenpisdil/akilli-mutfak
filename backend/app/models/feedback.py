@@ -8,6 +8,11 @@ class InteractionCreate(BaseModel):
     context_ingredients: Optional[List[str]] = None
 
 
+class InteractionDelete(BaseModel):
+    recipe_title: str
+    interaction_type: Literal["like", "skip", "save", "cook"]
+
+
 class ConsumptionCreate(BaseModel):
     recipe_title: str
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]

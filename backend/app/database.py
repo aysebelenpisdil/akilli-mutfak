@@ -77,6 +77,18 @@ _SCHEMA_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_consumption_user ON consumption_logs(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_consumption_date ON consumption_logs(consumed_at)",
     "CREATE INDEX IF NOT EXISTS idx_fridge_user ON fridge_ingredients(user_id)",
+    # Cleanup duplicate interactions before creating the UNIQUE index
+    """DELETE FROM recipe_interactions a
+       USING recipe_interactions b
+       WHERE a.id < b.id
+         AND a.user_id = b.user_id
+         AND a.recipe_title = b.recipe_title
+         AND a.interaction_type = b.interaction_type
+         AND a.interaction_type IN ('like','skip','save','cook')""",
+    # Prevent duplicate like/skip/save/cook per user+recipe (view is exempt — it's a log)
+    """CREATE UNIQUE INDEX IF NOT EXISTS uniq_interaction_per_user_recipe_type
+       ON recipe_interactions(user_id, recipe_title, interaction_type)
+       WHERE interaction_type IN ('like','skip','save','cook')""",
 ]
 
 _VIEW_SQL = """

@@ -27,12 +27,30 @@ class DatabaseService:
                 text("""INSERT INTO recipe_interactions
                         (user_id, recipe_title, interaction_type, context_ingredients)
                         VALUES (:user_id, :recipe_title, :interaction_type, :ctx)
+                        ON CONFLICT (user_id, recipe_title, interaction_type)
+                            WHERE interaction_type IN ('like','skip','save','cook')
+                            DO UPDATE SET
+                                created_at = NOW(),
+                                context_ingredients = EXCLUDED.context_ingredients
                         RETURNING id"""),
                 {"user_id": user_id, "recipe_title": recipe_title,
                  "interaction_type": interaction_type, "ctx": ctx_json},
             )
             row = result.fetchone()
             return row[0]
+
+    async def delete_interaction_by_recipe(self, user_id: str, recipe_title: str,
+                                            interaction_type: str) -> int:
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text("""DELETE FROM recipe_interactions
+                        WHERE user_id = :user_id
+                          AND recipe_title = :recipe_title
+                          AND interaction_type = :interaction_type"""),
+                {"user_id": user_id, "recipe_title": recipe_title,
+                 "interaction_type": interaction_type},
+            )
+            return result.rowcount
 
     async def log_consumption(self, user_id: str, recipe_title: str,
                                meal_type: str, portion_size: float = 1.0,
