@@ -1,8 +1,8 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
 import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CalorieFilterKey } from '../store/RecipeContext';
-import { recordInteraction } from '../utils/api';
+import { recordInteraction, deleteInteractionByRecipe, getInteractionHistory } from '../utils/api';
 import RecipeImage from '../components/RecipeImage';
 import { Link } from 'react-router-dom';
 import { filterRecipes, getActiveFilterLabels } from '../utils/recipeFilter';
@@ -14,6 +14,8 @@ const RECIPES_PER_PAGE = 12;
 const RecipesPage: React.FC = () => {
     const { fridgeIngredients, dietaryPreferences, excludedIngredients } = useFridge();
     const { user } = useAuth();
+    const [likedTitles, setLikedTitles] = useState<Set<string>>(new Set());
+    const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
     const {
         rawRecipes, loading, error, explanation, metadata, responseTime,
         useRAG, setUseRAG,
@@ -21,6 +23,20 @@ const RecipesPage: React.FC = () => {
         page, loadMore,
         fetchRecipes, hasSearched,
     } = useRecipes();
+
+    useEffect(() => {
+        if (!user) { setLikedTitles(new Set()); return; }
+        getInteractionHistory(500, 0)
+            .then(({ interactions }) => {
+                const liked = new Set(
+                    interactions
+                        .filter(i => i.interaction_type === 'like')
+                        .map(i => i.recipe_title)
+                );
+                setLikedTitles(liked);
+            })
+            .catch(() => {});
+    }, [user]);
 
     // Apply client-side filters to raw recipes (no re-fetch needed)
     const suitableRecipes = useMemo(
@@ -65,13 +81,42 @@ const RecipesPage: React.FC = () => {
         }
     }, [user, fridgeIngredients]);
 
-    const trackLike = useCallback((e: React.MouseEvent, recipeTitle: string) => {
+    const toggleLike = useCallback(async (e: React.MouseEvent, recipeTitle: string) => {
         e.preventDefault();
         e.stopPropagation();
-        if (user) {
-            recordInteraction({ recipe_title: recipeTitle, interaction_type: 'like', context_ingredients: fridgeIngredients }).catch(() => {});
+        if (!user || pendingLikes.has(recipeTitle)) return;
+
+        const wasLiked = likedTitles.has(recipeTitle);
+
+        setPendingLikes(prev => new Set(prev).add(recipeTitle));
+        setLikedTitles(prev => {
+            const next = new Set(prev);
+            if (wasLiked) next.delete(recipeTitle);
+            else next.add(recipeTitle);
+            return next;
+        });
+
+        try {
+            if (wasLiked) {
+                await deleteInteractionByRecipe(recipeTitle, 'like');
+            } else {
+                await recordInteraction({ recipe_title: recipeTitle, interaction_type: 'like', context_ingredients: fridgeIngredients });
+            }
+        } catch {
+            setLikedTitles(prev => {
+                const next = new Set(prev);
+                if (wasLiked) next.add(recipeTitle);
+                else next.delete(recipeTitle);
+                return next;
+            });
+        } finally {
+            setPendingLikes(prev => {
+                const next = new Set(prev);
+                next.delete(recipeTitle);
+                return next;
+            });
         }
-    }, [user, fridgeIngredients]);
+    }, [user, fridgeIngredients, likedTitles, pendingLikes]);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -280,17 +325,22 @@ const RecipesPage: React.FC = () => {
                                         <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
                                             <span className="text-sm font-medium text-primary">Tarifi Görüntüle &rarr;</span>
                                             <div className="flex items-center gap-2">
-                                                {user && (
-                                                    <button
-                                                        onClick={(e) => trackLike(e, recipe.Title)}
-                                                        className="p-1.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                                        title="Beğen"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+                                                {user && (() => {
+                                                        const isLiked = likedTitles.has(recipe.Title);
+                                                        const isPending = pendingLikes.has(recipe.Title);
+                                                        return (
+                                                            <button
+                                                                onClick={(e) => toggleLike(e, recipe.Title)}
+                                                                disabled={isPending}
+                                                                className={`p-1.5 rounded-full transition-colors ${isLiked ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'} ${isPending ? 'opacity-50 cursor-wait' : ''}`}
+                                                                title={isLiked ? 'Beğenmekten vazgeç' : 'Beğen'}
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill={isLiked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                                </svg>
+                                                            </button>
+                                                        );
+                                                    })()}
                                                 <span className={`text-xs uppercase tracking-wider font-semibold ${availability.isFullyAvailable ? 'text-green-600' : 'text-gray-400'}`}>
                                                     {availability.isFullyAvailable ? 'Mutfakta Hazır' : `${availability.missing.length} Eksik`}
                                                 </span>

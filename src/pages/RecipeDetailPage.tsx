@@ -8,7 +8,7 @@ import RecipeImage from '../components/RecipeImage';
 import { estimateRecipeCalories, getCalorieLabel, getIngredientCalories } from '../utils/calorieEstimator';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
-import { getSubstitutions, recordInteraction, logConsumption, getRecipeStatus, getRecipeByTitle, type ApiError } from '../utils/api';
+import { getSubstitutions, recordInteraction, deleteInteractionByRecipe, logConsumption, getRecipeStatus, getRecipeByTitle, type ApiError } from '../utils/api';
 
 const MEAL_OPTIONS: { value: MealType; label: string }[] = [
     { value: 'breakfast', label: 'Kahvaltı' },
@@ -70,13 +70,20 @@ const RecipeDetailPage: React.FC = () => {
 
     const handleInteraction = useCallback(async (type: 'like' | 'skip') => {
         if (!user || !recipeTitle) return;
+        const previousStatus = interactionStatus;
+        const isToggleOff = previousStatus === type;
+        setInteractionStatus(isToggleOff ? null : type);
         try {
-            await recordInteraction({ recipe_title: recipeTitle, interaction_type: type, context_ingredients: fridgeIngredients });
-            setInteractionStatus(type);
+            if (isToggleOff) {
+                await deleteInteractionByRecipe(recipeTitle, type);
+            } else {
+                await recordInteraction({ recipe_title: recipeTitle, interaction_type: type, context_ingredients: fridgeIngredients });
+            }
         } catch (err) {
+            setInteractionStatus(previousStatus);
             if ((err as ApiError)?.status === 401) await logout();
         }
-    }, [user, recipeTitle, fridgeIngredients, logout]);
+    }, [user, recipeTitle, fridgeIngredients, logout, interactionStatus]);
 
     const handleCook = useCallback(async () => {
         if (!user || !recipeTitle) return;

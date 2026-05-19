@@ -377,6 +377,20 @@ export const getRecipeStatus = async (recipeTitle: string): Promise<{ status: st
     return response.json();
 };
 
+export const deleteInteractionByRecipe = async (
+    recipe_title: string,
+    interaction_type: 'like' | 'skip' | 'save' | 'cook'
+): Promise<{ deleted: number }> => {
+    const response = await fetch(`${API_BASE_URL}/feedback/interaction`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe_title, interaction_type }),
+    });
+    if (!response.ok) await handleApiError(response);
+    return response.json();
+};
+
 export const deleteInteraction = async (id: number): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/feedback/interaction/${id}`, {
         method: 'DELETE',

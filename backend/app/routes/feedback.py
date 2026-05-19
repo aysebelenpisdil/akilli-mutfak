@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 import logging
 from app.models.feedback import (
-    InteractionCreate, ConsumptionCreate, UserFeatures,
+    InteractionCreate, InteractionDelete, ConsumptionCreate, UserFeatures,
     InteractionResponse, ConsumptionResponse,
 )
 from app.services.database_service import database_service
@@ -81,6 +81,20 @@ async def get_consumption_history(
 async def get_weekly_repeats(user: dict = Depends(get_current_user)):
     repeats = await database_service.get_weekly_repeats(user["id"])
     return {"weekly_repeats": repeats, "count": len(repeats)}
+
+
+@router.delete("/interaction", status_code=200)
+async def delete_interaction_by_recipe(
+    body: InteractionDelete,
+    user: dict = Depends(get_current_user),
+):
+    deleted = await database_service.delete_interaction_by_recipe(
+        user_id=user["id"],
+        recipe_title=body.recipe_title,
+        interaction_type=body.interaction_type,
+    )
+    logger.info(f"[{user['email']}] unlike {body.interaction_type} -> {body.recipe_title} (deleted={deleted})")
+    return {"deleted": deleted}
 
 
 @router.delete("/interaction/{interaction_id}", status_code=204)
