@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Response, Depends, HTTPException
+from fastapi import APIRouter, Response, Depends, HTTPException, Request
 import logging
 import httpx
+from app.middleware.rate_limiter import limiter
 from app.models.auth import (
     MagicLinkRequest, MagicLinkVerifyRequest,
     MagicLinkResponse, UserResponse, SessionInfo,
@@ -29,7 +30,8 @@ def _set_session_cookie(response: Response, session_id: str):
 
 
 @router.post("/supabase-session", response_model=SessionInfo)
-async def create_supabase_session(body: SupabaseSessionRequest, response: Response):
+@limiter.limit("10/minute")
+async def create_supabase_session(request: Request, body: SupabaseSessionRequest, response: Response):
     """
     Validate a Supabase access token, find/create a local user, and issue a session cookie.
     Called by the frontend immediately after supabase.auth.signInWithPassword succeeds.

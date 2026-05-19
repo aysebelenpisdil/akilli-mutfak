@@ -39,6 +39,9 @@ google-genai==1.10.0
 httpx==0.28.1
 
 
+# Rate limiting
+slowapi==0.1.9
+
 # Test
 pytest==7.4.4
 pytest-asyncio==0.23.3

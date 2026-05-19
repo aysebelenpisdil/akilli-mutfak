@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.middleware.rate_limiter import limiter
 from datetime import datetime
 import time
 import logging
@@ -23,6 +26,8 @@ app = FastAPI(
     description="Backend API for Smart Fridge Chef - AI-powered recipe recommendation system",
     version="1.0.0"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Response time middleware
 @app.middleware("http")

@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps for sentence-transformers / faiss-cpu
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.txt
+
+COPY backend/ .
+
+# Build FAISS + TF-IDF indexes if not already present
+RUN python scripts/build_faiss_index.py && \
+    python scripts/build_tfidf_index.py
+
+EXPOSE 3001
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3001"]

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from typing import List, Optional
 import time
 import logging
+from app.middleware.rate_limiter import limiter
 from app.models.recipe import (
     Recipe,
     RecipeWithMatch,
@@ -83,7 +84,8 @@ async def get_recipe(title: str):
 
 
 @router.post("/recommend", response_model=RecipeRecommendResponse)
-async def recommend_recipes(request: RecipeRecommendRequest):
+@limiter.limit("30/minute")
+async def recommend_recipes(request: Request, body: RecipeRecommendRequest):
     """
     Get recipe recommendations based on fridge ingredients using vector search
     
@@ -92,32 +94,32 @@ async def recommend_recipes(request: RecipeRecommendRequest):
     start_time = time.time()
     
     try:
-        if not request.ingredients:
+        if not body.ingredients:
             raise HTTPException(status_code=400, detail="Malzeme listesi gerekli")
-        
+
         # Determine search method
-        use_vector_search = request.use_vector_search if request.use_vector_search is not None else True
-        top_k = request.top_k if request.top_k is not None else 50
-        
+        use_vector_search = body.use_vector_search if body.use_vector_search is not None else True
+        top_k = body.top_k if body.top_k is not None else 50
+
         # Check if vector search is available
         search_method = "vector" if (use_vector_search and faiss_service.is_loaded()) else "string_matching"
-        
-        logger.info(f"Recipe recommendation request: {len(request.ingredients)} ingredients, method: {search_method}")
-        
+
+        logger.info(f"Recipe recommendation request: {len(body.ingredients)} ingredients, method: {search_method}")
+
         # Get recommendations
         recommendations = recipe_service.find_suitable_recipes(
-            user_ingredients=request.ingredients,
+            user_ingredients=body.ingredients,
             use_vector_search=use_vector_search,
             top_k=top_k
         )
-        
+
         process_time = time.time() - start_time
         logger.info(f"Recommendations generated in {process_time:.3f}s: {len(recommendations)} results")
-        
+
         return RecipeRecommendResponse(
             recommendations=recommendations,
             count=len(recommendations),
-            userIngredients=request.ingredients,
+            userIngredients=body.ingredients,
             search_method=search_method
         )
     except HTTPException:
@@ -128,7 +130,8 @@ async def recommend_recipes(request: RecipeRecommendRequest):
 
 
 @router.post("/search", response_model=RecipeSearchResponse)
-async def search_recipes(request: RecipeSearchRequest):
+@limiter.limit("30/minute")
+async def search_recipes(request: Request, body: RecipeSearchRequest):
     """
     Search recipes by text query using vector similarity search
     
@@ -140,31 +143,30 @@ async def search_recipes(request: RecipeSearchRequest):
     start_time = time.time()
     
     try:
-        if not request.query or not request.query.strip():
+        if not body.query or not body.query.strip():
             raise HTTPException(status_code=400, detail="Arama sorgusu gerekli")
-        
-        top_k = request.top_k if request.top_k is not None else 20
-        
+
+        top_k = body.top_k if body.top_k is not None else 20
+
         # Check if vector search is available
         if faiss_service.is_loaded():
             try:
-                logger.info(f"Text search request: '{request.query}', method: vector")
-                
+                logger.info(f"Text search request: '{body.query}', method: vector")
+
                 # Search using FAISS
                 distances, indices = faiss_service.search_by_text(
-                    text=request.query,
+                    text=body.query,
                     k=min(top_k, recipe_service.get_total_count()),
                     embedding_service=embedding_service
                 )
-                
+
                 # Convert results to RecipeWithMatch
                 results = []
                 recipes = recipe_service.get_all_recipes(limit=recipe_service.get_total_count())
-                
+
                 for idx, dist in zip(indices, distances):
                     if idx < len(recipes):
                         recipe = recipes[idx]
-                        # For text search, we don't have ingredient matching, so set empty
                         results.append(
                             RecipeWithMatch(
                                 **recipe.dict(),
@@ -172,28 +174,28 @@ async def search_recipes(request: RecipeSearchRequest):
                                 matchingIngredients=[]
                             )
                         )
-                
+
                 process_time = time.time() - start_time
                 logger.info(f"Text search completed in {process_time:.3f}s: {len(results)} results")
-                
+
                 return RecipeSearchResponse(
                     recipes=results,
                     count=len(results),
-                    query=request.query,
+                    query=body.query,
                     search_method="vector"
                 )
-                
+
             except Exception as e:
                 logger.warning(f"Vector search failed: {e}, falling back to string matching")
                 # Fall through to string matching
-        
+
         # Fallback: Simple string matching in recipe titles
-        logger.info(f"Text search request: '{request.query}', method: string_matching")
+        logger.info(f"Text search request: '{body.query}', method: string_matching")
         recipes = recipe_service.get_all_recipes(limit=recipe_service.get_total_count())
-        
-        query_lower = request.query.lower()
+
+        query_lower = body.query.lower()
         results = []
-        
+
         for recipe in recipes:
             if query_lower in recipe.Title.lower():
                 results.append(
@@ -205,14 +207,14 @@ async def search_recipes(request: RecipeSearchRequest):
                 )
                 if len(results) >= top_k:
                     break
-        
+
         process_time = time.time() - start_time
         logger.info(f"Text search completed in {process_time:.3f}s: {len(results)} results")
-        
+
         return RecipeSearchResponse(
             recipes=results,
             count=len(results),
-            query=request.query,
+            query=body.query,
             search_method="string_matching"
         )
         
@@ -224,8 +226,10 @@ async def search_recipes(request: RecipeSearchRequest):
 
 
 @router.post("/rag-recommend", response_model=RAGRecommendResponse)
+@limiter.limit("20/minute")
 async def rag_recommend(
-    request: RAGRecommendRequest,
+    request: Request,
+    body: RAGRecommendRequest,
     user: Optional[dict] = Depends(get_optional_user),
 ):
     """
@@ -237,22 +241,22 @@ async def rag_recommend(
     start_time = time.time()
 
     try:
-        if not request.ingredients:
+        if not body.ingredients:
             raise HTTPException(status_code=400, detail="Malzeme listesi gerekli")
 
         preferences_dict = None
-        if request.preferences:
+        if body.preferences:
             preferences_dict = {
-                "vegan": request.preferences.vegan or False,
-                "vegetarian": request.preferences.vegetarian or False,
-                "glutenFree": request.preferences.glutenFree or False,
-                "dairyFree": request.preferences.dairyFree or False,
-                "nutAllergy": request.preferences.nutAllergy or False,
+                "vegan": body.preferences.vegan or False,
+                "vegetarian": body.preferences.vegetarian or False,
+                "glutenFree": body.preferences.glutenFree or False,
+                "dairyFree": body.preferences.dairyFree or False,
+                "nutAllergy": body.preferences.nutAllergy or False,
             }
 
-        top_k = request.top_k if request.top_k is not None else 10
-        retrieval_top_k = request.retrieval_top_k if request.retrieval_top_k is not None else 50
-        explain = request.explain if request.explain is not None else True
+        top_k = body.top_k if body.top_k is not None else 10
+        retrieval_top_k = body.retrieval_top_k if body.retrieval_top_k is not None else 50
+        explain = body.explain if body.explain is not None else True
 
         # Fetch interaction history + CF scores for logged-in users
         user_history: Optional[dict] = None
@@ -279,14 +283,14 @@ async def rag_recommend(
                 logger.warning(f"CF skorları hesaplanamadı: {exc}")
 
         logger.info(
-            f"RAG recommendation: {len(request.ingredients)} ingredients, "
+            f"RAG recommendation: {len(body.ingredients)} ingredients, "
             f"top_k={top_k}, explain={explain}, personalized={bool(user_history)}"
         )
 
         result = rag_pipeline.process(
-            user_ingredients=request.ingredients,
+            user_ingredients=body.ingredients,
             user_preferences=preferences_dict,
-            excluded_ingredients=request.excluded_ingredients or [],
+            excluded_ingredients=body.excluded_ingredients or [],
             top_k=top_k,
             explain=explain,
             retrieval_top_k=retrieval_top_k,
@@ -321,7 +325,8 @@ async def rag_recommend(
 
 
 @router.post("/substitutions", response_model=SubstitutionResponse)
-async def get_substitutions(request: SubstitutionRequest):
+@limiter.limit("10/minute")
+async def get_substitutions(request: Request, body: SubstitutionRequest):
     """
     Get ingredient substitution suggestions via LLM.
 
@@ -329,18 +334,18 @@ async def get_substitutions(request: SubstitutionRequest):
     available ingredients. Returns per-ingredient substitution options.
     """
     try:
-        if not request.missing_ingredients:
+        if not body.missing_ingredients:
             return SubstitutionResponse(substitutions={}, explanation=None)
 
         logger.info(
-            f"Substitution request: '{request.recipe_title}', "
-            f"{len(request.missing_ingredients)} missing ingredients"
+            f"Substitution request: '{body.recipe_title}', "
+            f"{len(body.missing_ingredients)} missing ingredients"
         )
 
         result = llm_service.generate_substitutions(
-            recipe_title=request.recipe_title,
-            missing_ingredients=request.missing_ingredients,
-            available_ingredients=request.available_ingredients,
+            recipe_title=body.recipe_title,
+            missing_ingredients=body.missing_ingredients,
+            available_ingredients=body.available_ingredients,
         )
 
         if result is None:
