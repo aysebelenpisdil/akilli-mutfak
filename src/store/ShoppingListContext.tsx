@@ -59,7 +59,10 @@ export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ childr
             })().catch(() => {});
         } else {
             const saved = localStorage.getItem(STORAGE_KEY);
-            setItems(saved ? JSON.parse(saved) : []);
+            // Login sırasında localStorage temizlenir; çıkışta boş localStorage
+            // görünce setItems([]) çağırmak DB listesini sıfırlar — bu yüzden
+            // sadece localStorage'da veri varsa yükle, yoksa state'i koru.
+            if (saved) setItems(JSON.parse(saved));
         }
     }, [user?.id]);
 
