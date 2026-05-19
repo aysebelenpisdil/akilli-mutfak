@@ -37,7 +37,19 @@ __pycache__/
 
 # Large generated files
 repomix-output.xml
+repomix-output.txt
 *.npy
+
+# Claude Code personal config
+CLAUDE.md
+.claude/
+
+# KTUN university documents
+*KTUN*.docx
+
+# Draw.io diagrams
+*.drawio
+*.drawio.png
 
 # Editor
 .vscode/*
