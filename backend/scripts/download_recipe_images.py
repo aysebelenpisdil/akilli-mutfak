@@ -1,33 +1,30 @@
 """
-Downloads missing recipe images from Wikimedia Commons.
+Downloads missing recipe images using DuckDuckGo image search.
 Run from project root: python backend/scripts/download_recipe_images.py
 
-Uses only stdlib — no extra dependencies needed.
-Rate-limited to be polite to Wikimedia servers (1 req/sec).
+Requires: pip install duckduckgo-search
 """
 import json
-import re
 import time
+import re
 import urllib.request
-import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 RECIPES_JSON = ROOT / "backend" / "data" / "recipes.json"
 IMG_DIR = ROOT / "public" / "images" / "recipies"
 
-COMMONS_API = "https://commons.wikimedia.org/w/api.php"
-HEADERS = {"User-Agent": "RecipeImageBot/1.0 (academic graduation project; urllib)"}
-
-PREFIXES = [
-    "vegan-", "glutensiz-", "sut-urunsuz-", "vejetaryen-",
-    "laktozsuz-", "kuruyemissiz-",
-]
+HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; recipe-image-downloader/1.0)"}
 
 TITLE_SUFFIXES = [
     " (Vegan)", " (Vejetaryen)", " (Glutensiz)", " (Süt Ürünü Yok)",
     " (Glutensiz & Vejetaryen)", " (Vegan & Glutensiz)", " (Laktozsuz)",
     " (Kuruyemiş İçermez)",
+]
+
+PREFIXES = [
+    "vegan-", "glutensiz-", "sut-urunsuz-", "vejetaryen-",
+    "laktozsuz-", "kuruyemissiz-",
 ]
 
 
@@ -37,96 +34,65 @@ def clean_title(title: str) -> str:
     return title.strip()
 
 
-def _api_get(params: dict, retries: int = 3) -> dict:
-    url = COMMONS_API + "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers=HEADERS)
-    for attempt in range(retries):
+def base_title(title: str) -> str:
+    """Strip dietary prefix words from title for a cleaner search query."""
+    return re.sub(r"^(Vegan|Vejetaryen|Glutensiz|Süt Ürünsüz|Laktozsuz|Kuruyemissiz)\s+", "", title, flags=re.I).strip()
+
+
+def search_image_url(ddgs, query: str):
+    """Search using an existing DDGS instance (shared across all calls)."""
+    for attempt in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=15) as r:
-                return json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < retries - 1:
-                wait = 5 * (attempt + 1)
-                print(f"    429 rate limit, {wait}s bekleniyor...")
+            results = list(ddgs.images(query, max_results=3))
+            for r in results:
+                url = r.get("image", "")
+                if url and url.lower().endswith((".jpg", ".jpeg")):
+                    return url
+            for r in results:
+                url = r.get("image", "")
+                if url:
+                    return url
+            return None
+        except Exception as e:
+            msg = str(e)
+            if "403" in msg or "Ratelimit" in msg:
+                wait = 10 * (attempt + 1)
+                print(f"    rate limit, {wait}s bekleniyor...")
                 time.sleep(wait)
             else:
-                raise
-    return {}
-
-
-def search_files(query: str) -> list[str]:
-    """Return up to 5 Wikimedia Commons file titles matching the query."""
-    try:
-        data = _api_get({
-            "action": "query", "format": "json",
-            "list": "search",
-            "srsearch": query,
-            "srnamespace": "6",
-            "srlimit": "5",
-            "utf8": "1",
-        })
-        return [item["title"] for item in data.get("query", {}).get("search", [])]
-    except Exception as e:
-        print(f"    search error: {e}")
-        return []
-
-
-def get_jpeg_url(file_title: str):
-    """Return a ~800px-wide JPEG URL for a Commons file, or None if not JPEG."""
-    try:
-        data = _api_get({
-            "action": "query", "format": "json",
-            "titles": file_title,
-            "prop": "imageinfo",
-            "iiprop": "url|mime|size",
-            "iiurlwidth": "800",
-        })
-        for page in data.get("query", {}).get("pages", {}).values():
-            for info in page.get("imageinfo", []):
-                mime = info.get("mime", "")
-                if "jpeg" in mime or "jpg" in mime:
-                    return info.get("thumburl") or info.get("url")
-    except Exception as e:
-        print(f"    imageinfo error: {e}")
+                print(f"    DDG error: {e}")
+                return None
     return None
 
 
 def download(url: str, dest: Path) -> bool:
     try:
         req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=30) as r:
-            dest.write_bytes(r.read())
-        return dest.stat().st_size > 5_000  # reject tiny/broken files
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = r.read()
+        if len(data) < 5_000:
+            return False
+        dest.write_bytes(data)
+        return True
     except Exception as e:
         print(f"    download error: {e}")
         return False
 
 
-def find_image(title: str):
-    """Try several search queries for a recipe title, return JPEG URL or None."""
-    queries = [
-        title,
-        f"{title} yemeği",
-        f"{title} Turkish food",
-        # ASCII fallback: replace Turkish chars
-        re.sub(r"[ğĞ]", "g", re.sub(r"[üÜ]", "u",
-               re.sub(r"[şŞ]", "s", re.sub(r"[ıİ]", "i",
-               re.sub(r"[öÖ]", "o", re.sub(r"[çÇ]", "c", title)))))),
-    ]
-    for q in queries:
-        for file_title in search_files(q):
-            url = get_jpeg_url(file_title)
-            if url:
-                return url
-        time.sleep(2.0)
-    return None
-
-
 def main():
-    data = json.loads(RECIPES_JSON.read_text(encoding="utf-8"))
-    existing = {f.name for f in IMG_DIR.iterdir() if f.suffix == ".jpg"}
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        try:
+            from duckduckgo_search import DDGS
+        except ImportError:
+            print("Hata: ddgs kurulu değil.")
+            print("Çalıştır: pip3 install ddgs")
+            return
 
-    # Build (img_name, clean_title) list for all still-missing images
+    data = json.loads(RECIPES_JSON.read_text(encoding="utf-8"))
+    existing = {f.name for f in IMG_DIR.iterdir() if f.suffix in (".jpg", ".jpeg")}
+
     missing = []
     for recipe in data:
         img_name = recipe.get("Image_Name", "")
@@ -140,11 +106,21 @@ def main():
     downloaded = 0
     not_found = []
 
+    # Tek bir DDGS oturumu — her sorgu için yeni bağlantı açılmıyor
+    ddgs = DDGS()
+
     for i, (img_name, title) in enumerate(missing, 1):
         dest = IMG_DIR / f"{img_name}.jpg"
+        short_title = base_title(title)
         print(f"[{i:3}/{len(missing)}] {title}")
 
-        url = find_image(title)
+        url = None
+        for query in [f"{short_title} tarifi", f"{short_title} yemek", short_title]:
+            url = search_image_url(ddgs, query)
+            if url:
+                break
+            time.sleep(2.0)
+
         if url and download(url, dest):
             size_kb = dest.stat().st_size // 1024
             print(f"         ✅  kaydedildi ({size_kb} KB)")
