@@ -59,7 +59,7 @@ async def get_features(user: dict = Depends(get_current_user)):
 
 @router.get("/history")
 async def get_history(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     user: dict = Depends(get_current_user),
 ):
@@ -69,7 +69,7 @@ async def get_history(
 
 @router.get("/consumption-history")
 async def get_consumption_history(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     user: dict = Depends(get_current_user),
 ):
