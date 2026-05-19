@@ -352,6 +352,32 @@ export const getFridgeIngredients = async (): Promise<{ ingredients: string[] }>
     return response.json();
 };
 
+export interface ShoppingListItem {
+    name: string;
+    display_name: string;
+    purchased: boolean;
+    from_recipes: string[];
+}
+
+export const getShoppingList = async (): Promise<{ items: ShoppingListItem[] }> => {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/items`, {
+        credentials: 'include',
+    });
+    if (response.status === 401) return { items: [] };
+    if (!response.ok) await handleApiError(response);
+    return response.json();
+};
+
+export const saveShoppingList = async (items: ShoppingListItem[]): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/shopping-list/items`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+    });
+    if (!response.ok && response.status !== 401) await handleApiError(response);
+};
+
 export const saveFridgeIngredients = async (ingredients: string[]): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/fridge/ingredients`, {
         method: 'POST',

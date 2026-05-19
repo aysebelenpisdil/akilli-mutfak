@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from uuid import uuid4
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 from app.config import settings
@@ -16,8 +15,12 @@ engine = create_async_engine(
     echo=False,
     pool_pre_ping=True,
     connect_args={
+        # Disable client-side prepared statement cache.
+        # With statement_cache_size=0, asyncpg uses unnamed (transient) prepared
+        # statements that are safe with PgBouncer in transaction pooling mode.
+        # Named statements (via prepared_statement_name_func) persist across the
+        # pool's backend connections and cause "does not exist" errors under pgbouncer.
         "statement_cache_size": 0,
-        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4().hex}__",
     },
 )
 
@@ -69,6 +72,16 @@ _SCHEMA_STATEMENTS = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (user_id, ingredient)
     )""",
+    """CREATE TABLE IF NOT EXISTS shopping_list_items (
+        id BIGSERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        item_name TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        purchased INTEGER DEFAULT 0,
+        from_recipes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, item_name)
+    )""",
     "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_magic_links_token ON magic_links(token)",
     "CREATE INDEX IF NOT EXISTS idx_interactions_user ON recipe_interactions(user_id)",
@@ -77,15 +90,9 @@ _SCHEMA_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_consumption_user ON consumption_logs(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_consumption_date ON consumption_logs(consumed_at)",
     "CREATE INDEX IF NOT EXISTS idx_fridge_user ON fridge_ingredients(user_id)",
-    # Cleanup duplicate interactions before creating the UNIQUE index
-    """DELETE FROM recipe_interactions a
-       USING recipe_interactions b
-       WHERE a.id < b.id
-         AND a.user_id = b.user_id
-         AND a.recipe_title = b.recipe_title
-         AND a.interaction_type = b.interaction_type
-         AND a.interaction_type IN ('like','skip','save','cook')""",
+    "CREATE INDEX IF NOT EXISTS idx_shopping_list_user ON shopping_list_items(user_id)",
     # Prevent duplicate like/skip/save/cook per user+recipe (view is exempt — it's a log)
+    # Note: one-time duplicate cleanup was performed in May 2026; no longer needed at startup.
     """CREATE UNIQUE INDEX IF NOT EXISTS uniq_interaction_per_user_recipe_type
        ON recipe_interactions(user_id, recipe_title, interaction_type)
        WHERE interaction_type IN ('like','skip','save','cook')""",

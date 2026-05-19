@@ -2,11 +2,13 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
+import { useShoppingList } from '../store/ShoppingListContext';
 
 const Navbar: React.FC = () => {
     const location = useLocation();
     const { fridgeIngredients } = useFridge();
     const { user, logout } = useAuth();
+    const { pendingCount } = useShoppingList();
 
     const isActive = (path: string) => location.pathname === path ? 'text-primary font-bold bg-green-50' : 'text-gray-600 hover:text-primary hover:bg-green-50';
 
@@ -38,11 +40,22 @@ const Navbar: React.FC = () => {
                         >
                             Tarifler
                         </Link>
-                         <Link 
-                            to="/preferences" 
+                         <Link
+                            to="/preferences"
                             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/preferences')}`}
                         >
                             Tercihler
+                        </Link>
+                        <Link
+                            to="/shopping-list"
+                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/shopping-list')}`}
+                        >
+                            Alışveriş Listesi
+                            {pendingCount > 0 && (
+                                <span className="ml-2 bg-amber-100 text-amber-700 py-0.5 px-2 rounded-full text-xs">
+                                    {pendingCount}
+                                </span>
+                            )}
                         </Link>
 
                         <div className="h-6 w-px bg-gray-200"></div>

@@ -1,33 +1,52 @@
-"""Pytest fixtures - test veritabanı ve API istemcisi."""
+"""Pytest fixtures — shared test client and auth helpers."""
 import os
-import pytest
 import asyncio
-from pathlib import Path
+import pytest
 
-# Test için ayrı DB kullan (app import edilmeden önce)
-_test_db = Path(__file__).parent.parent / "data" / "test_smart_fridge.db"
-os.environ["DATABASE_PATH"] = str(_test_db)
+# Prevent tests from sending real e-mail; expose dev_token in magic-link response
 os.environ.setdefault("SESSION_SECRET", "test-secret-key-for-pytest")
-os.environ["SMTP_ENABLED"] = "false"  # Testlerde dev_token dönsün, e-posta gönderilmesin
+os.environ["SMTP_ENABLED"] = "false"
 
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.database import init_db
+from app.database import init_db, engine
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+async def _setup_db():
+    await init_db()
+    # Dispose all pooled connections created during init so that each test's
+    # function-scoped event loop gets clean connections (no cross-loop errors).
+    await engine.dispose()
+
+
+asyncio.run(_setup_db())
+
+
+@pytest.fixture(autouse=True)
+async def _dispose_after_each():
+    """Dispose pooled DB connections after every test to prevent cross-loop errors."""
+    yield
+    await engine.dispose()
 
 
 @pytest.fixture
 async def client():
-    await init_db()
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
         follow_redirects=True,
     ) as ac:
         yield ac
+
+
+# Convenience: authenticated client (session cookie already set)
+@pytest.fixture
+async def auth_client(client):
+    """Returns (client, user_email) with a valid session cookie."""
+    email = "shared-auth@example.com"
+    r1 = await client.post("/api/auth/magic-link", json={"email": email})
+    assert r1.status_code == 200, r1.text
+    token = r1.json()["dev_token"]
+    r2 = await client.post("/api/auth/verify", json={"token": token})
+    assert r2.status_code == 200, r2.text
+    yield client, email

@@ -8,6 +8,7 @@ import RecipeImage from '../components/RecipeImage';
 import { estimateRecipeCalories, getCalorieLabel, getIngredientCalories } from '../utils/calorieEstimator';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
+import { useShoppingList } from '../store/ShoppingListContext';
 import { getSubstitutions, recordInteraction, deleteInteractionByRecipe, logConsumption, getRecipeStatus, getRecipeByTitle, type ApiError } from '../utils/api';
 
 const MEAL_OPTIONS: { value: MealType; label: string }[] = [
@@ -26,6 +27,7 @@ const RecipeDetailPage: React.FC = () => {
     const matchingIngredients = locationState?.matchingIngredients ?? [];
     const { fridgeIngredients } = useFridge();
     const { user, logout } = useAuth();
+    const { addItemsFromRecipe } = useShoppingList();
 
     const [recipe, setRecipe] = useState<Recipe | undefined>(
         locationState?.recipe ?? recipes.find(r => r.Title === decodeURIComponent(title || ''))
@@ -254,6 +256,21 @@ const RecipeDetailPage: React.FC = () => {
                                     );
                                 })}
                             </ul>
+
+                            {/* Add to Shopping List Button */}
+                            {missingIngredients.length > 0 && (
+                                <div className="mt-6 pt-4 border-t border-green-200">
+                                    <button
+                                        onClick={() => addItemsFromRecipe(recipe.Title, missingIngredients)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors mb-3"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        {missingIngredients.length} eksik malzemeyi alışveriş listesine ekle
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Substitution Button */}
                             {missingIngredients.length > 0 && substitutions === null && (

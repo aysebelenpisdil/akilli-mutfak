@@ -8,6 +8,7 @@ export interface DietaryPreferences {
     vegan: boolean;
     dairyFree: boolean;
     nutAllergy: boolean;
+    [key: string]: boolean;
 }
 
 interface FridgeContextType {

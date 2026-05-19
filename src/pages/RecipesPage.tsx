@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
+import { useShoppingList } from '../store/ShoppingListContext';
 import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CalorieFilterKey } from '../store/RecipeContext';
 import { recordInteraction, deleteInteractionByRecipe, getInteractionHistory } from '../utils/api';
 import RecipeImage from '../components/RecipeImage';
@@ -14,6 +15,7 @@ const RECIPES_PER_PAGE = 12;
 const RecipesPage: React.FC = () => {
     const { fridgeIngredients, dietaryPreferences, excludedIngredients } = useFridge();
     const { user } = useAuth();
+    const { isItemInList, addItemsFromRecipe } = useShoppingList();
     const [likedTitles, setLikedTitles] = useState<Set<string>>(new Set());
     const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
     const {
@@ -174,9 +176,9 @@ const RecipesPage: React.FC = () => {
                         {metadata && useRAG && (
                             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                                 <span className="text-gray-500">Pipeline:</span>
-                                {metadata.retriever_used && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">FAISS</span>}
-                                {metadata.reranker_used && <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Reranker</span>}
-                                {metadata.llm_used && <span className="px-2 py-1 bg-green-100 text-green-800 rounded">LLM</span>}
+                                {!!metadata.retriever_used && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">FAISS</span>}
+                                {!!metadata.reranker_used && <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Reranker</span>}
+                                {!!metadata.llm_used && <span className="px-2 py-1 bg-green-100 text-green-800 rounded">LLM</span>}
                                 <span className="text-gray-500">({metadata.retrieval_count as number} &rarr; {metadata.reranked_count as number})</span>
                             </div>
                         )}
@@ -325,6 +327,28 @@ const RecipesPage: React.FC = () => {
                                         <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
                                             <span className="text-sm font-medium text-primary">Tarifi Görüntüle &rarr;</span>
                                             <div className="flex items-center gap-2">
+                                                {availability.missing.length > 0 && (() => {
+                                                    const inAny = availability.missing.some(m => isItemInList(m));
+                                                    return (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                addItemsFromRecipe(recipe.Title, availability.missing);
+                                                            }}
+                                                            className={`p-1.5 rounded-full transition-colors ${
+                                                                inAny
+                                                                    ? 'text-amber-600 bg-amber-50 hover:bg-amber-100'
+                                                                    : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                                                            }`}
+                                                            title={`${availability.missing.length} eksik malzemeyi alışveriş listesine ekle`}
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    );
+                                                })()}
                                                 {user && (() => {
                                                         const isLiked = likedTitles.has(recipe.Title);
                                                         const isPending = pendingLikes.has(recipe.Title);

@@ -206,6 +206,52 @@ class DatabaseService:
                     )
 
 
+    async def get_shopping_list(self, user_id: str) -> list[dict]:
+        async with engine.connect() as conn:
+            result = await conn.execute(
+                text("""SELECT item_name, display_name, purchased, from_recipes
+                        FROM shopping_list_items
+                        WHERE user_id = :user_id
+                        ORDER BY purchased, created_at"""),
+                {"user_id": user_id},
+            )
+            items = []
+            for r in result.fetchall():
+                items.append({
+                    "name": r[0],
+                    "display_name": r[1],
+                    "purchased": bool(r[2]),
+                    "from_recipes": json.loads(r[3]) if r[3] else [],
+                })
+            return items
+
+    async def save_shopping_list(self, user_id: str, items: list[dict]) -> None:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("DELETE FROM shopping_list_items WHERE user_id = :user_id"),
+                {"user_id": user_id},
+            )
+            for it in items:
+                name = (it.get("name") or "").strip().lower()
+                if not name:
+                    continue
+                await conn.execute(
+                    text("""INSERT INTO shopping_list_items
+                            (user_id, item_name, display_name, purchased, from_recipes)
+                            VALUES (:user_id, :name, :display, :purchased, :recipes)
+                            ON CONFLICT (user_id, item_name) DO UPDATE SET
+                                display_name = EXCLUDED.display_name,
+                                purchased = EXCLUDED.purchased,
+                                from_recipes = EXCLUDED.from_recipes"""),
+                    {
+                        "user_id": user_id,
+                        "name": name,
+                        "display": it.get("display_name", name),
+                        "purchased": 1 if it.get("purchased") else 0,
+                        "recipes": json.dumps(it.get("from_recipes", []), ensure_ascii=False) or None,
+                    },
+                )
+
     async def get_user_preferences(self, user_id: str) -> dict:
         async with engine.connect() as conn:
             result = await conn.execute(

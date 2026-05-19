@@ -8,7 +8,17 @@ async def test_health_ok(client):
     assert data["status"] == "ok"
     assert "timestamp" in data
     assert "database" in data
-    assert data["database"]["type"] == "SQLite"
+    assert data["database"]["available"] is True
+    assert "PostgreSQL" in data["database"]["type"]
+
+
+async def test_health_includes_rag_pipeline(client):
+    r = await client.get("/health")
+    data = r.json()
+    assert "rag_pipeline" in data
+    assert "retriever" in data["rag_pipeline"]
+    assert "reranker" in data["rag_pipeline"]
+    assert "generator" in data["rag_pipeline"]
 
 
 async def test_root(client):
@@ -17,3 +27,4 @@ async def test_root(client):
     data = r.json()
     assert "message" in data
     assert "version" in data
+    assert "docs" in data

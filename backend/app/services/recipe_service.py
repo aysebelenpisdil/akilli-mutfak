@@ -115,7 +115,7 @@ class RecipeService:
             if len(matching_ingredients) > 0:
                 results.append(
                     RecipeWithMatch(
-                        **recipe.dict(),
+                        **recipe.model_dump(),
                         matchingCount=len(matching_ingredients),
                         matchingIngredients=matching_ingredients
                     )
@@ -181,7 +181,7 @@ class RecipeService:
                         
                         results.append(
                             RecipeWithMatch(
-                                **recipe.dict(),
+                                **recipe.model_dump(),
                                 matchingCount=len(matching_ingredients),
                                 matchingIngredients=matching_ingredients
                             )
