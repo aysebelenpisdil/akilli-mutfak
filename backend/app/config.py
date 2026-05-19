@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     FAISS_INDEX_TYPE: str = "IndexFlatL2"  # Options: IndexFlatL2, IndexIVFFlat, IndexHNSW
     FAISS_METRIC: str = "L2"  # Options: L2 (Euclidean), IP (Inner Product)
     FAISS_INDEX_PATH: str = "data/recipe_index.faiss"
+
+    # TF-IDF Inverted Index Configuration
+    TFIDF_VECTORIZER_PATH: str = "data/tfidf_vectorizer.pkl"
+    TFIDF_MATRIX_PATH: str = "data/tfidf_matrix.npz"
+    RRF_K: int = 60  # Reciprocal Rank Fusion constant
+    HYBRID_RETRIEVAL_ENABLED: bool = True
     
     # Reranker Configuration
     RERANKER_MODEL: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"  # Multilingual cross-encoder

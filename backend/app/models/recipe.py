@@ -75,6 +75,7 @@ class RAGMetadata(BaseModel):
     llm_used: bool
     personalized: bool = False
     cf_used: bool = False
+    tfidf_used: bool = False
 
 
 class MatchScore(BaseModel):

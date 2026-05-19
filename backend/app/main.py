@@ -12,6 +12,7 @@ from app.services.embedding_service import embedding_service
 from app.services.reranker_service import reranker_service
 from app.services.llm_service import llm_service
 from app.services.rag_pipeline import rag_pipeline
+from app.services.tfidf_service import tfidf_service
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -95,7 +96,22 @@ async def startup_event():
         logger.error(f"❌ Error loading FAISS index: {e}", exc_info=True)
         logger.warning("   Continuing with string matching fallback")
     
-    # Step 1.5: Pre-load embedding model (used for FAISS query encoding)
+    # Step 1.5: Load TF-IDF inverted index (hibrit retrieval için)
+    try:
+        logger.info("📋 Loading TF-IDF inverted index...")
+        success = tfidf_service.load_index()
+        if success:
+            logger.info(
+                f"✅ TF-IDF index loaded "
+                f"({tfidf_service._matrix.shape[0]} tarif, vocab={tfidf_service.vocab_size})"
+            )
+        else:
+            logger.warning("⚠️  TF-IDF index bulunamadı — hibrit retrieval devre dışı")
+            logger.warning("   scripts/build_tfidf_index.py ile index oluşturun")
+    except Exception as e:
+        logger.error(f"❌ TF-IDF index yüklenemedi: {e}", exc_info=True)
+
+    # Step 1.6: Pre-load embedding model (used for FAISS query encoding)
     try:
         logger.info("🔤 Pre-loading embedding model...")
         embedding_service._load_model()
@@ -130,6 +146,7 @@ async def startup_event():
     logger.info("🔗 RAG Pipeline ready")
     logger.info("   Components:")
     logger.info(f"      - Retriever (FAISS): {'✅' if faiss_service.is_loaded() else '❌ NOT LOADED'}")
+    logger.info(f"      - TF-IDF index: {'✅ (hibrit aktif)' if tfidf_service.is_loaded() else '⚠️  yüklü değil (FAISS-only)'}")
     logger.info(f"      - Reranker: {'✅' if reranker_service.is_loaded() else '❌ NOT LOADED'}")
     logger.info(f"      - Generator (LLM): {'✅' if (llm_service.enabled and llm_service.api_key) else '❌'}")
     

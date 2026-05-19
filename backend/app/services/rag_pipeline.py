@@ -10,6 +10,7 @@ from app.services.embedding_service import embedding_service
 from app.services.reranker_service import reranker_service
 from app.services.llm_service import llm_service
 from app.services.recipe_service import recipe_service
+from app.services.tfidf_service import tfidf_service
 from app.models.recipe import Recipe, RecipeWithMatch, MatchScore
 
 logger = logging.getLogger(__name__)
@@ -39,37 +40,105 @@ class RAGPipeline:
         embedding_service=embedding_service,
         reranker_service=reranker_service,
         llm_service=llm_service,
-        recipe_service=recipe_service
+        recipe_service=recipe_service,
+        tfidf_service=tfidf_service,
     ):
         self.retriever = faiss_service
         self.embedder = embedding_service
         self.reranker = reranker_service
         self.generator = llm_service
         self.recipe_service = recipe_service
+        self.tfidf = tfidf_service
 
-    def _retrieve(self, user_ingredients: List[str], top_k: int = 50) -> List[Recipe]:
+    @staticmethod
+    def _rrf_fuse(
+        ranked_lists: List[List[int]],
+        top_k: int,
+        rrf_k: int = 60,
+    ) -> List[int]:
+        """Reciprocal Rank Fusion: birden fazla sıralı index listesini birleştirir."""
+        scores: Dict[int, float] = {}
+        for ranked in ranked_lists:
+            for rank, idx in enumerate(ranked):
+                scores[idx] = scores.get(idx, 0.0) + 1.0 / (rrf_k + rank + 1)
+        fused = sorted(scores.items(), key=lambda x: -x[1])
+        return [idx for idx, _ in fused[:top_k]]
+
+    def _retrieve(
+        self, user_ingredients: List[str], top_k: int = 50, use_hybrid: bool = True
+    ) -> Tuple[List[Recipe], bool]:
+        """
+        Returns (recipes, tfidf_used).
+        use_hybrid=True: FAISS + TF-IDF → RRF fusion.
+        use_hybrid=False: FAISS-only (A/B karşılaştırması için).
+        Her ikisi de yüklü değilse string matching fallback'e düşer.
+        """
         try:
             logger.debug(f"Retrieving top-{top_k} recipes for ingredients: {user_ingredients}")
 
-            if not self.retriever.is_loaded():
-                logger.warning("FAISS index not loaded, falling back to string matching")
-                results = self.recipe_service.find_suitable_recipes(
-                    user_ingredients=user_ingredients, use_vector_search=False, top_k=top_k
+            faiss_loaded = self.retriever.is_loaded()
+            tfidf_loaded = self.tfidf.is_loaded() and use_hybrid
+
+            # Her ikisi de yüklü → hibrit RRF
+            if faiss_loaded and tfidf_loaded:
+                all_recipes = self.recipe_service.get_all_recipes(
+                    limit=self.recipe_service.get_total_count()
                 )
-                return [Recipe(**recipe.dict()) for recipe in results]
+                n = len(all_recipes)
 
-            distances, indices = self.retriever.search_by_ingredients(
-                ingredients=user_ingredients,
-                k=min(top_k, self.recipe_service.get_total_count()),
-                embedding_service=self.embedder
-            )
+                _, faiss_indices = self.retriever.search_by_ingredients(
+                    ingredients=user_ingredients,
+                    k=min(top_k, n),
+                    embedding_service=self.embedder,
+                )
+                _, tfidf_indices = self.tfidf.search_by_ingredients(
+                    ingredients=user_ingredients, k=min(top_k, n)
+                )
 
-            all_recipes = self.recipe_service.get_all_recipes(
-                limit=self.recipe_service.get_total_count()
+                fused_indices = self._rrf_fuse(
+                    [list(faiss_indices), list(tfidf_indices)],
+                    top_k=top_k,
+                    rrf_k=60,
+                )
+                retrieved = [all_recipes[i] for i in fused_indices if i < n]
+                logger.debug(
+                    f"Hybrid RRF: {len(faiss_indices)} FAISS + "
+                    f"{len(tfidf_indices)} TF-IDF → {len(retrieved)} fused"
+                )
+                return retrieved, True
+
+            # Sadece FAISS
+            if faiss_loaded:
+                all_recipes = self.recipe_service.get_all_recipes(
+                    limit=self.recipe_service.get_total_count()
+                )
+                _, indices = self.retriever.search_by_ingredients(
+                    ingredients=user_ingredients,
+                    k=min(top_k, len(all_recipes)),
+                    embedding_service=self.embedder,
+                )
+                retrieved = [all_recipes[i] for i in indices if i < len(all_recipes)]
+                logger.debug(f"FAISS-only: {len(retrieved)} recipes")
+                return retrieved, False
+
+            # Sadece TF-IDF
+            if tfidf_loaded:
+                all_recipes = self.recipe_service.get_all_recipes(
+                    limit=self.recipe_service.get_total_count()
+                )
+                _, indices = self.tfidf.search_by_ingredients(
+                    ingredients=user_ingredients, k=min(top_k, len(all_recipes))
+                )
+                retrieved = [all_recipes[i] for i in indices if i < len(all_recipes)]
+                logger.debug(f"TF-IDF-only: {len(retrieved)} recipes")
+                return retrieved, True
+
+            # String matching fallback
+            logger.warning("FAISS ve TF-IDF yüklü değil, string matching fallback kullanılıyor")
+            results = self.recipe_service.find_suitable_recipes(
+                user_ingredients=user_ingredients, use_vector_search=False, top_k=top_k
             )
-            retrieved_recipes = [all_recipes[idx] for idx in indices if idx < len(all_recipes)]
-            logger.debug(f"Retrieved {len(retrieved_recipes)} recipes from FAISS")
-            return retrieved_recipes
+            return [Recipe(**r.dict()) for r in results], False
 
         except Exception as e:
             logger.error(f"Error in retrieval step: {e}", exc_info=True)
@@ -77,7 +146,7 @@ class RAGPipeline:
             results = self.recipe_service.find_suitable_recipes(
                 user_ingredients=user_ingredients, use_vector_search=False, top_k=top_k
             )
-            return [Recipe(**recipe.dict()) for recipe in results]
+            return [Recipe(**r.dict()) for r in results], False
 
     def _rerank(
         self,
@@ -176,6 +245,7 @@ class RAGPipeline:
         user_id: Optional[str] = None,
         user_history: Optional[Dict[str, str]] = None,
         cf_scores: Optional[Dict[str, float]] = None,
+        use_hybrid: bool = True,
     ) -> Dict[str, Any]:
         """
         Complete RAG pipeline: Retrieve → Rerank → Personalize → Generate
@@ -187,11 +257,13 @@ class RAGPipeline:
         cf_used = bool(cf_scores)
         logger.info(
             f"RAG pipeline started: {len(user_ingredients)} ingredients, "
-            f"top_k={top_k}, personalized={personalized}, cf={cf_used}"
+            f"top_k={top_k}, personalized={personalized}, cf={cf_used}, hybrid={use_hybrid}"
         )
 
         # Step 1: Retrieval
-        retrieved_recipes = self._retrieve(user_ingredients=user_ingredients, top_k=retrieval_top_k)
+        retrieved_recipes, tfidf_used = self._retrieve(
+            user_ingredients=user_ingredients, top_k=retrieval_top_k, use_hybrid=use_hybrid
+        )
         if not retrieved_recipes:
             return {
                 "recipes": [],
@@ -201,6 +273,7 @@ class RAGPipeline:
                     "pipeline_stages": ["retrieval"],
                     "retriever_used": False, "reranker_used": False,
                     "llm_used": False, "personalized": False,
+                    "tfidf_used": False,
                 }
             }
 
@@ -258,6 +331,8 @@ class RAGPipeline:
         )
 
         stages = ["retrieval", "reranking"]
+        if tfidf_used:
+            stages.append("tfidf_hybrid")
         if personalized:
             stages.append("personalization")
         if cf_used:
@@ -278,6 +353,7 @@ class RAGPipeline:
                 "llm_used": self.generator.is_available(),
                 "personalized": personalized,
                 "cf_used": cf_used,
+                "tfidf_used": tfidf_used,
             }
         }
 

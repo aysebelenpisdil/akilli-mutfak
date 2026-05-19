@@ -41,3 +41,29 @@ def rag_recommend(
 
 def rag_no_personalization(query_ingredients: List[str], top_k: int = 10) -> List[str]:
     return rag_recommend(query_ingredients, top_k, user_history=None)
+
+
+def rag_faiss_only(query_ingredients: List[str], top_k: int = 10) -> List[str]:
+    """FAISS-only retrieval (TF-IDF kapalı) — A/B karşılaştırması için."""
+    from app.services.rag_pipeline import rag_pipeline
+    result = rag_pipeline.process(
+        user_ingredients=query_ingredients,
+        top_k=top_k,
+        retrieval_top_k=50,
+        explain=False,
+        use_hybrid=False,
+    )
+    return [r.Title for r in result.get("recipes", [])]
+
+
+def rag_hybrid(query_ingredients: List[str], top_k: int = 10) -> List[str]:
+    """FAISS + TF-IDF hibrit retrieval (RRF) — tfidf_service yüklüyse aktif."""
+    from app.services.rag_pipeline import rag_pipeline
+    result = rag_pipeline.process(
+        user_ingredients=query_ingredients,
+        top_k=top_k,
+        retrieval_top_k=50,
+        explain=False,
+        use_hybrid=True,
+    )
+    return [r.Title for r in result.get("recipes", [])]
