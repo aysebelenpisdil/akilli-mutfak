@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Buzdolabı Şefi',
   webDir: 'dist',
   server: {
-    androidScheme: 'https',
+    androidScheme: 'http',
   },
   android: {
     allowMixedContent: true,
