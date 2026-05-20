@@ -274,4 +274,60 @@ class DatabaseService:
             )
 
 
+    async def record_survey_response(
+        self,
+        user_id: str,
+        rating: int,
+        cook_intent: str,
+        comment: str | None,
+        context_ingredients: list[str] | None,
+        recipe_titles: list[str] | None,
+    ) -> tuple[int, str]:
+        ctx = json.dumps(context_ingredients, ensure_ascii=False) if context_ingredients else None
+        titles = json.dumps(recipe_titles, ensure_ascii=False) if recipe_titles else None
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text("""INSERT INTO survey_responses
+                        (user_id, rating, cook_intent, comment, context_ingredients, recipe_titles)
+                        VALUES (:user_id, :rating, :cook_intent, :comment, :ctx, :titles)
+                        RETURNING id, created_at"""),
+                {
+                    "user_id": user_id, "rating": rating, "cook_intent": cook_intent,
+                    "comment": comment, "ctx": ctx, "titles": titles,
+                },
+            )
+            row = result.fetchone()
+            return row[0], _as_str(row[1])
+
+    async def get_survey_stats(self) -> dict:
+        async with engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT COUNT(*), COALESCE(AVG(rating::float), 0) FROM survey_responses")
+            )
+            row = result.fetchone()
+            total = int(row[0])
+            avg_rating = round(float(row[1]), 2)
+
+            result = await conn.execute(
+                text("SELECT cook_intent, COUNT(*) FROM survey_responses GROUP BY cook_intent")
+            )
+            cook_breakdown: dict = {"yes": 0, "maybe": 0, "no": 0}
+            for r in result.fetchall():
+                cook_breakdown[r[0]] = int(r[1])
+
+            result = await conn.execute(
+                text("SELECT rating, COUNT(*) FROM survey_responses GROUP BY rating ORDER BY rating")
+            )
+            rating_dist: dict = {str(i): 0 for i in range(1, 6)}
+            for r in result.fetchall():
+                rating_dist[str(r[0])] = int(r[1])
+
+            return {
+                "total_responses": total,
+                "average_rating": avg_rating,
+                "cook_intent_breakdown": cook_breakdown,
+                "rating_distribution": rating_dist,
+            }
+
+
 database_service = DatabaseService()

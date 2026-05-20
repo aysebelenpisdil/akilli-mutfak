@@ -425,6 +425,24 @@ export const deleteInteraction = async (id: number): Promise<void> => {
     if (!response.ok && response.status !== 404) await handleApiError(response);
 };
 
+export interface SurveyPayload {
+    rating: number;
+    cook_intent: 'yes' | 'maybe' | 'no';
+    comment?: string;
+    context_ingredients?: string[];
+    recipe_titles?: string[];
+}
+
+export const submitSurvey = async (data: SurveyPayload): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/feedback/survey`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) await handleApiError(response);
+};
+
 export const getInteractionHistory = async (
     limit = 50, offset = 0
 ): Promise<{ interactions: InteractionResponse[]; count: number }> => {

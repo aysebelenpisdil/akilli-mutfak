@@ -5,6 +5,7 @@ import { useShoppingList } from '../store/ShoppingListContext';
 import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CalorieFilterKey } from '../store/RecipeContext';
 import { recordInteraction, deleteInteractionByRecipe, getInteractionHistory } from '../utils/api';
 import RecipeImage from '../components/RecipeImage';
+import RecipeSurvey from '../components/RecipeSurvey';
 import { Link } from 'react-router-dom';
 import { filterRecipes, getActiveFilterLabels } from '../utils/recipeFilter';
 import { getCalorieLabel } from '../utils/calorieEstimator';
@@ -18,6 +19,7 @@ const RecipesPage: React.FC = () => {
     const { isItemInList, addItemsFromRecipe } = useShoppingList();
     const [likedTitles, setLikedTitles] = useState<Set<string>>(new Set());
     const [pendingLikes, setPendingLikes] = useState<Set<string>>(new Set());
+    const [surveyDismissed, setSurveyDismissed] = useState(() => sessionStorage.getItem('survey_dismissed') === '1');
     const {
         rawRecipes, loading, error, explanation, metadata, responseTime,
         useRAG, setUseRAG,
@@ -216,6 +218,17 @@ const RecipesPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {user && hasSearched && rawRecipes.length > 0 && !surveyDismissed && (
+                    <RecipeSurvey
+                        contextIngredients={fridgeIngredients}
+                        recipeTitles={rawRecipes.slice(0, 5).map(r => r.Title)}
+                        onComplete={() => {
+                            sessionStorage.setItem('survey_dismissed', '1');
+                            setSurveyDismissed(true);
+                        }}
+                    />
                 )}
             </div>
 

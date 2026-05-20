@@ -38,6 +38,26 @@ class ConsumptionResponse(BaseModel):
     notes: Optional[str] = None
 
 
+class SurveyRequest(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    cook_intent: Literal["yes", "maybe", "no"]
+    comment: Optional[str] = Field(None, max_length=500)
+    context_ingredients: Optional[List[str]] = None
+    recipe_titles: Optional[List[str]] = None
+
+
+class SurveyResponse(BaseModel):
+    id: int
+    created_at: str
+
+
+class SurveyStats(BaseModel):
+    total_responses: int
+    average_rating: float
+    cook_intent_breakdown: dict
+    rating_distribution: dict
+
+
 class UserFeatures(BaseModel):
     user_id: str
     email: str

@@ -82,6 +82,16 @@ _SCHEMA_STATEMENTS = [
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (user_id, item_name)
     )""",
+    """CREATE TABLE IF NOT EXISTS survey_responses (
+        id BIGSERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+        cook_intent TEXT NOT NULL CHECK(cook_intent IN ('yes','maybe','no')),
+        comment TEXT,
+        context_ingredients TEXT,
+        recipe_titles TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
     "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_magic_links_token ON magic_links(token)",
     "CREATE INDEX IF NOT EXISTS idx_interactions_user ON recipe_interactions(user_id)",
@@ -91,6 +101,7 @@ _SCHEMA_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_consumption_date ON consumption_logs(consumed_at)",
     "CREATE INDEX IF NOT EXISTS idx_fridge_user ON fridge_ingredients(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_shopping_list_user ON shopping_list_items(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_survey_user ON survey_responses(user_id)",
     # Prevent duplicate like/skip/save/cook per user+recipe (view is exempt — it's a log)
     # Note: one-time duplicate cleanup was performed in May 2026; no longer needed at startup.
     """CREATE UNIQUE INDEX IF NOT EXISTS uniq_interaction_per_user_recipe_type

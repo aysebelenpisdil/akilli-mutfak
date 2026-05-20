@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import logging
 from app.models.feedback import (
     InteractionCreate, InteractionDelete, ConsumptionCreate, UserFeatures,
     InteractionResponse, ConsumptionResponse,
+    SurveyRequest, SurveyResponse, SurveyStats,
 )
 from app.services.database_service import database_service
 from app.middleware.auth import get_current_user
+from app.middleware.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -111,3 +113,24 @@ async def delete_interaction(
 async def get_recipe_status(recipe_title: str, user: dict = Depends(get_current_user)):
     status = await database_service.get_recipe_interaction_status(user["id"], recipe_title)
     return status
+
+
+@router.post("/survey", response_model=SurveyResponse)
+@limiter.limit("5/minute")
+async def submit_survey(request: Request, body: SurveyRequest, user: dict = Depends(get_current_user)):
+    row_id, created_at = await database_service.record_survey_response(
+        user_id=user["id"],
+        rating=body.rating,
+        cook_intent=body.cook_intent,
+        comment=body.comment,
+        context_ingredients=body.context_ingredients,
+        recipe_titles=body.recipe_titles,
+    )
+    logger.info(f"[{user['email']}] survey: rating={body.rating}, intent={body.cook_intent}")
+    return SurveyResponse(id=row_id, created_at=created_at)
+
+
+@router.get("/survey/stats", response_model=SurveyStats)
+async def get_survey_stats(user: dict = Depends(get_current_user)):
+    stats = await database_service.get_survey_stats()
+    return SurveyStats(**stats)
