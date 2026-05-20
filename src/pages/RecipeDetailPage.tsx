@@ -41,6 +41,8 @@ const RecipeDetailPage: React.FC = () => {
     const [subError, setSubError] = useState<string | null>(null);
 
     const [interactionStatus, setInteractionStatus] = useState<string | null>(null);
+    const [interactionLoading, setInteractionLoading] = useState(false);
+    const [cookLoading, setCookLoading] = useState(false);
     const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
     const [selectedPortion, setSelectedPortion] = useState(1);
     const [cookLogged, setCookLogged] = useState(false);
@@ -71,10 +73,11 @@ const RecipeDetailPage: React.FC = () => {
     }, [user, recipeTitle, fridgeIngredients]);
 
     const handleInteraction = useCallback(async (type: 'like' | 'skip') => {
-        if (!user || !recipeTitle) return;
+        if (!user || !recipeTitle || interactionLoading) return;
         const previousStatus = interactionStatus;
         const isToggleOff = previousStatus === type;
         setInteractionStatus(isToggleOff ? null : type);
+        setInteractionLoading(true);
         try {
             if (isToggleOff) {
                 await deleteInteractionByRecipe(recipeTitle, type);
@@ -84,19 +87,24 @@ const RecipeDetailPage: React.FC = () => {
         } catch (err) {
             setInteractionStatus(previousStatus);
             if ((err as ApiError)?.status === 401) await logout();
+        } finally {
+            setInteractionLoading(false);
         }
-    }, [user, recipeTitle, fridgeIngredients, logout, interactionStatus]);
+    }, [user, recipeTitle, fridgeIngredients, logout, interactionStatus, interactionLoading]);
 
     const handleCook = useCallback(async () => {
-        if (!user || !recipeTitle) return;
+        if (!user || !recipeTitle || cookLoading || cookLogged) return;
+        setCookLoading(true);
         try {
             await recordInteraction({ recipe_title: recipeTitle, interaction_type: 'cook' });
             await logConsumption({ recipe_title: recipeTitle, meal_type: selectedMeal, portion_size: selectedPortion });
             setCookLogged(true);
         } catch (err) {
             if ((err as ApiError)?.status === 401) await logout();
+        } finally {
+            setCookLoading(false);
         }
-    }, [user, recipeTitle, selectedMeal, selectedPortion, logout]);
+    }, [user, recipeTitle, selectedMeal, selectedPortion, logout, cookLoading, cookLogged]);
 
     if (recipeLoading) {
         return (
@@ -342,28 +350,44 @@ const RecipeDetailPage: React.FC = () => {
                                     <div className="flex items-center gap-3">
                                         <button
                                             onClick={() => handleInteraction('like')}
-                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                                            disabled={interactionLoading}
+                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                                 interactionStatus === 'like'
                                                     ? 'bg-red-50 border-red-300 text-red-600'
                                                     : 'bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500'
                                             }`}
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill={interactionStatus === 'like' ? 'currentColor' : 'none'} stroke="currentColor">
-                                                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                                            </svg>
+                                            {interactionLoading && interactionStatus !== 'skip' ? (
+                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                </svg>
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill={interactionStatus === 'like' ? 'currentColor' : 'none'} stroke="currentColor">
+                                                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                                                </svg>
+                                            )}
                                             Beğen
                                         </button>
                                         <button
                                             onClick={() => handleInteraction('skip')}
-                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                                            disabled={interactionLoading}
+                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                                 interactionStatus === 'skip'
                                                     ? 'bg-gray-100 border-gray-400 text-gray-700'
                                                     : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-700'
                                             }`}
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                            </svg>
+                                            {interactionLoading && interactionStatus !== 'like' ? (
+                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                </svg>
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                                </svg>
+                                            )}
                                             Atla
                                         </button>
                                     </div>
@@ -411,14 +435,22 @@ const RecipeDetailPage: React.FC = () => {
                                         </div>
                                         <button
                                             onClick={handleCook}
-                                            disabled={cookLogged}
-                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                                            disabled={cookLogged || cookLoading}
+                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed ${
                                                 cookLogged
                                                     ? 'bg-green-100 text-green-700 border border-green-300'
-                                                    : 'bg-primary text-white hover:bg-secondary'
+                                                    : 'bg-primary text-white hover:bg-secondary disabled:opacity-70'
                                             }`}
                                         >
-                                            {cookLogged ? (
+                                            {cookLoading ? (
+                                                <>
+                                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                    </svg>
+                                                    Kaydediliyor...
+                                                </>
+                                            ) : cookLogged ? (
                                                 <>
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

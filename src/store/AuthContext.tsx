@@ -8,6 +8,7 @@ const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/
 interface AuthContextType {
     user: User | null;
     loading: boolean;
+    logoutLoading: boolean;
     login: (email: string, password: string) => Promise<void>;
     signup: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -33,6 +34,7 @@ async function bridgeToBackend(accessToken: string): Promise<User> {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [logoutLoading, setLogoutLoading] = useState(false);
 
     const checkSession = useCallback(async () => {
         try {
@@ -68,13 +70,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
-        await logoutUser().catch(() => { /* ignore */ });
-        setUser(null);
+        if (logoutLoading) return;
+        setLogoutLoading(true);
+        try {
+            await supabase.auth.signOut();
+            await logoutUser().catch(() => { /* ignore */ });
+            setUser(null);
+        } finally {
+            setLogoutLoading(false);
+        }
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, loading, logoutLoading, login, signup, logout }}>
             {children}
         </AuthContext.Provider>
     );
