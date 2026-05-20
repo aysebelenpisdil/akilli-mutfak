@@ -43,7 +43,8 @@ async def client():
 @pytest.fixture
 async def auth_client(client):
     """Returns (client, user_email) with a valid session cookie."""
-    email = "shared-auth@example.com"
+    import uuid
+    email = f"test-{uuid.uuid4().hex[:12]}@example.com"
     r1 = await client.post("/api/auth/magic-link", json={"email": email})
     assert r1.status_code == 200, r1.text
     token = r1.json()["dev_token"]
