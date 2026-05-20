@@ -10,9 +10,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:backend": "cd backend && ./venv/bin/python -m pytest tests/ -v"
+    "test:backend": "cd backend && ./venv/bin/python -m pytest tests/ -v",
+    "cap:sync": "vite build && npx cap sync android",
+    "cap:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@supabase/supabase-js": "^2.105.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

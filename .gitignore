@@ -6,6 +6,10 @@
 node_modules/
 backend/venv/
 
+# Capacitor native projects (generated, not source of truth)
+android/
+ios/
+
 # Build outputs
 dist/
 dist-ssr/
