@@ -22,7 +22,6 @@ const RecipesPage: React.FC = () => {
     const [surveyDismissed, setSurveyDismissed] = useState(() => sessionStorage.getItem('survey_dismissed') === '1');
     const {
         rawRecipes, loading, error, explanation, metadata, responseTime,
-        useRAG, setUseRAG,
         calorieFilter, setCalorieFilter,
         page, loadMore,
         fetchRecipes, hasSearched,
@@ -125,24 +124,10 @@ const RecipesPage: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="mb-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="flex items-center gap-4">
-                            <h1 className="text-3xl font-bold text-gray-900">Önerilen Tarifler</h1>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={useRAG}
-                                    onChange={(e) => setUseRAG(e.target.checked)}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                                <span className="ml-3 text-sm font-medium text-gray-700">
-                                    {useRAG ? 'YZ Arama' : 'Standart Arama'}
-                                </span>
-                            </label>
-                        </div>
-                        <p className="mt-2 text-gray-600">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-3xl font-bold text-gray-900">Önerilen Tarifler</h1>
+                        <p className="mt-2 text-gray-600 text-sm sm:text-base">
                             Buzdolabınıza göre: <span className="italic">{fridgeIngredients.join(', ') || 'Henüz yok'}</span>
                         </p>
 
@@ -175,7 +160,7 @@ const RecipesPage: React.FC = () => {
                             </div>
                         )}
 
-                        {metadata && useRAG && (
+                        {metadata && (
                             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                                 <span className="text-gray-500">Pipeline:</span>
                                 {!!metadata.retriever_used && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">FAISS</span>}
@@ -198,7 +183,7 @@ const RecipesPage: React.FC = () => {
                     </div>
                 )}
 
-                {explanation && useRAG && (
+                {explanation && (
                     <div className="mt-4 bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-primary rounded-lg p-4 shadow-sm">
                         <div className="flex items-start">
                             <div className="flex-shrink-0">

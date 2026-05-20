@@ -48,8 +48,8 @@ const PreferencesPage: React.FC = () => {
                         const isChecked = dietaryPreferences[key as keyof typeof dietaryPreferences];
 
                         return (
-                            <div key={key} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                <div className="flex flex-col">
+                            <div key={key} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                <div className="flex flex-col min-w-0">
                                     <span className="font-medium text-gray-900">{label}</span>
                                     <span className="text-sm text-gray-500">
                                         {isChecked ? `Sadece ${label} tarifler göster.` : `${label} malzemeli tarifleri dahil et.`}

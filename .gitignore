@@ -1,3 +1,7 @@
+# Thesis documents
+*.docx
+*.pdf
+
 # Dependencies
 node_modules/
 backend/venv/
