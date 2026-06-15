@@ -2,7 +2,7 @@
 
 An AI-powered Turkish recipe recommendation web app. Enter what's in your fridge and get personalized recipe suggestions with explanations — built for Turkish cuisine and the Turkish language.
 
-**Live at [akillimutfak.me](https://akillimutfak.me) · Built by Belen Pişdil**
+**Live at [akillimutfak.me](https://akillimutfak.me) · Built by Belen P.**
 
 ---
 
