@@ -13,8 +13,8 @@ Hedef kullanıcı ve şifre bu dosyada sabittir — demo sonrası silin.
 
 import os, sys, urllib.request, json, urllib.error
 
-TARGET_EMAIL = "aysebelenpisdil@gmail.com"
-NEW_PASSWORD  = "523103"
+TARGET_EMAIL = os.environ.get("TARGET_EMAIL", "")
+NEW_PASSWORD  = os.environ.get("NEW_PASSWORD", "")
 
 # --- Env / config -----------------------------------------------------------
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
