@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, Request
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 import time
 import logging
 from app.middleware.rate_limiter import limiter
@@ -12,10 +12,8 @@ from app.models.recipe import (
     RecipeSearchResponse,
     RAGRecommendRequest,
     RAGRecommendResponse,
-    DietaryPreferences,
     SubstitutionRequest,
     SubstitutionResponse,
-    MatchScore,
 )
 from app.services.recipe_service import recipe_service
 from app.services.faiss_service import faiss_service
@@ -72,10 +70,10 @@ async def get_recipe(title: str):
     """
     try:
         recipe = recipe_service.get_recipe_by_title(title)
-        
+
         if not recipe:
             raise HTTPException(status_code=404, detail="Tarif bulunamadı")
-        
+
         return recipe
     except HTTPException:
         raise
@@ -88,11 +86,11 @@ async def get_recipe(title: str):
 async def recommend_recipes(request: Request, body: RecipeRecommendRequest):
     """
     Get recipe recommendations based on fridge ingredients using vector search
-    
+
     Uses FAISS vector search if available, falls back to string matching.
     """
     start_time = time.time()
-    
+
     try:
         if not body.ingredients:
             raise HTTPException(status_code=400, detail="Malzeme listesi gerekli")
@@ -134,14 +132,14 @@ async def recommend_recipes(request: Request, body: RecipeRecommendRequest):
 async def search_recipes(request: Request, body: RecipeSearchRequest):
     """
     Search recipes by text query using vector similarity search
-    
+
     Example queries:
     - "spicy chicken pasta"
     - "vegetarian dessert"
     - "quick breakfast recipe"
     """
     start_time = time.time()
-    
+
     try:
         if not body.query or not body.query.strip():
             raise HTTPException(status_code=400, detail="Arama sorgusu gerekli")
@@ -217,7 +215,7 @@ async def search_recipes(request: Request, body: RecipeSearchRequest):
             query=body.query,
             search_method="string_matching"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -370,4 +368,3 @@ async def get_substitutions(request: Request, body: SubstitutionRequest):
             status_code=500,
             detail=f"İkame önerileri oluşturulamadı: {str(e)}"
         )
-

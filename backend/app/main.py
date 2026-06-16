@@ -14,7 +14,6 @@ from app.services.faiss_service import faiss_service
 from app.services.embedding_service import embedding_service
 from app.services.reranker_service import reranker_service
 from app.services.llm_service import llm_service
-from app.services.rag_pipeline import rag_pipeline
 from app.services.tfidf_service import tfidf_service
 
 # Setup logger
@@ -236,4 +235,3 @@ if __name__ == "__main__":
         port=settings.PORT,
         reload=True if settings.NODE_ENV == "development" else False
     )
-

@@ -3,7 +3,6 @@ FAISS Service
 Handles vector similarity search using FAISS index
 """
 
-import os
 import json
 import numpy as np
 from pathlib import Path
@@ -30,7 +29,7 @@ class FAISSService:
     Service for FAISS-based similarity search
     Manages index creation, loading, and searching
     """
-    
+
     def __init__(self):
         self.index: Optional[object] = None
         self.embeddings: Optional[np.ndarray] = None
@@ -39,7 +38,7 @@ class FAISSService:
         self.metadata_path = self.index_path.parent / 'recipe_index_metadata.json'
         self.dimension = settings.EMBEDDING_DIMENSION
         self._index_loaded = False
-    
+
     def _create_index(self):
         """
         Create a new FAISS index based on configuration
@@ -58,7 +57,7 @@ class FAISSService:
             index = faiss.IndexFlatL2(self.dimension)
 
         return index
-    
+
     def build_index(self, embeddings: np.ndarray, recipes: List[Recipe]) -> bool:
         """
         Build FAISS index from embeddings
@@ -77,55 +76,55 @@ class FAISSService:
             logger.info("Building FAISS index...")
             logger.info(f"  Embeddings shape: {embeddings.shape}")
             logger.info(f"  Recipes count: {len(recipes)}")
-            
+
             # Validate inputs
             if embeddings.shape[0] != len(recipes):
                 raise ValueError(f"Embeddings count ({embeddings.shape[0]}) doesn't match recipes count ({len(recipes)})")
-            
+
             if embeddings.shape[1] != self.dimension:
                 raise ValueError(f"Embedding dimension ({embeddings.shape[1]}) doesn't match expected ({self.dimension})")
-            
+
             # Create index
             index = self._create_index()
-            
+
             # Normalize embeddings for L2 distance (optional, but recommended)
             # For cosine similarity, we'd normalize, but for L2 we keep as-is
             embeddings_normalized = embeddings.astype('float32')
-            
+
             # Add vectors to index
             index.add(embeddings_normalized)
-            
+
             logger.info("FAISS index built successfully")
             logger.info(f"  Index type: {type(index).__name__}")
             logger.info(f"  Total vectors: {index.ntotal}")
-            
+
             # Save index
             self.index = index
             self.embeddings = embeddings_normalized
             self.recipes = recipes
             self._index_loaded = True
-            
+
             # Save to disk
             self._save_index()
-            
+
             return True
-            
+
         except Exception as e:
             logger.exception(f"Error building FAISS index: {e}")
             return False
-    
+
     def _save_index(self):
         """Save index and metadata to disk"""
         try:
             # Ensure directory exists
             self.index_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Save FAISS index
             if not FAISS_AVAILABLE:
                 raise RuntimeError("faiss is not installed")
             faiss.write_index(self.index, str(self.index_path))
             logger.info(f"Index saved to: {self.index_path}")
-            
+
             # Save metadata
             metadata = {
                 "index_type": settings.FAISS_INDEX_TYPE,
@@ -141,16 +140,16 @@ class FAISSService:
                     for i, recipe in enumerate(self.recipes)
                 ]
             }
-            
+
             with open(self.metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2, ensure_ascii=False)
-            
+
             logger.info(f"Metadata saved to: {self.metadata_path}")
-            
+
         except Exception as e:
             logger.exception(f"Error saving FAISS index: {e}")
             raise
-    
+
     def load_index(self) -> bool:
         """
         Load FAISS index from disk
@@ -166,16 +165,16 @@ class FAISSService:
                 logger.warning(f"FAISS index file not found: {self.index_path}")
                 logger.info(_FALLBACK_MSG)
                 return False
-            
+
             # Check file size (basic validation)
             file_size = self.index_path.stat().st_size
             if file_size == 0:
                 logger.error(f"FAISS index file is empty: {self.index_path}")
                 logger.warning(_FALLBACK_MSG)
                 return False
-            
+
             logger.debug(f"Loading FAISS index from {self.index_path} (size: {file_size} bytes)")
-            
+
             # Load FAISS index
             try:
                 self.index = faiss.read_index(str(self.index_path))
@@ -185,12 +184,12 @@ class FAISSService:
                 )
                 logger.warning(_FALLBACK_MSG)
                 return False
-            
+
             # Validate index
             if self.index.ntotal == 0:
                 logger.warning("FAISS index contains no vectors")
                 return False
-            
+
             if self.index.d != self.dimension:
                 logger.error(
                     f"Index dimension mismatch: expected {self.dimension}, "
@@ -198,18 +197,18 @@ class FAISSService:
                 )
                 logger.warning(_FALLBACK_MSG)
                 return False
-            
+
             logger.info(f"FAISS index loaded successfully from: {self.index_path}")
             logger.info(f"  Index type: {type(self.index).__name__}")
             logger.info(f"  Total vectors: {self.index.ntotal}")
             logger.info(f"  Dimension: {self.dimension}")
-            
+
             # Load metadata
             if self.metadata_path.exists():
                 try:
                     with open(self.metadata_path, 'r', encoding='utf-8') as f:
                         metadata = json.load(f)
-                    
+
                     # Validate metadata
                     if metadata.get('num_vectors') != self.index.ntotal:
                         logger.warning(
@@ -220,7 +219,7 @@ class FAISSService:
                         logger.info(f"Metadata loaded: {metadata.get('num_vectors', 'unknown')} vectors")
                 except Exception as e:
                     logger.warning(f"Failed to load metadata: {e}")
-            
+
             # Load embeddings (for reference, not required for search)
             embeddings_path = self.index_path.parent / 'recipe_embeddings.npy'
             if embeddings_path.exists():
@@ -229,10 +228,10 @@ class FAISSService:
                     logger.debug(f"Embeddings loaded: {self.embeddings.shape}")
                 except Exception as e:
                     logger.debug(f"Failed to load embeddings file (optional): {e}")
-            
+
             self._index_loaded = True
             return True
-            
+
         except FileNotFoundError:
             logger.warning(f"FAISS index file not found: {self.index_path}")
             logger.info(_FALLBACK_MSG)
@@ -245,20 +244,20 @@ class FAISSService:
             logger.exception(f"Unexpected error loading FAISS index: {e}")
             logger.warning(_FALLBACK_MSG)
             return False
-    
+
     def is_loaded(self) -> bool:
         """
         Check if FAISS index is loaded and ready for search
-        
+
         Returns:
             True if index is loaded, False otherwise
         """
         return self._index_loaded and self.index is not None
-    
+
     def _ensure_index_loaded(self):
         """
         Ensure index is loaded before search
-        
+
         Raises:
             RuntimeError: If index cannot be loaded
         """
@@ -272,84 +271,84 @@ class FAISSService:
                 )
                 logger.error(error_msg)
                 raise RuntimeError(error_msg)
-    
+
     def search(
-        self, 
-        query_vector: np.ndarray, 
+        self,
+        query_vector: np.ndarray,
         k: int = 10
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Search for similar vectors
-        
+
         Args:
             query_vector: Query embedding of shape (dimension,)
             k: Number of results to return
-            
+
         Returns:
             Tuple of (distances, indices)
             - distances: Array of shape (k,) - L2 distances (lower is better)
             - indices: Array of shape (k,) - Recipe indices
-            
+
         Raises:
             RuntimeError: If index is not loaded
             ValueError: If query vector has wrong shape or dimension
         """
         self._ensure_index_loaded()
-        
+
         # Validate query vector
         if query_vector is None or query_vector.size == 0:
             raise ValueError("Query vector cannot be empty")
-        
+
         if query_vector.shape[0] != self.dimension:
             raise ValueError(
                 f"Query vector dimension mismatch: expected {self.dimension}, "
                 f"got {query_vector.shape[0]}"
             )
-        
+
         # Validate k
         if k <= 0:
             raise ValueError(f"k must be positive, got {k}")
-        
+
         if k > self.index.ntotal:
             logger.warning(
                 f"Requested k={k} is greater than total vectors ({self.index.ntotal}). "
                 f"Returning {self.index.ntotal} results."
             )
             k = self.index.ntotal
-        
+
         try:
             # Reshape query to (1, dimension) for FAISS
             query_reshaped = query_vector.reshape(1, -1).astype('float32')
-            
+
             # Search
             distances, indices = self.index.search(query_reshaped, k)
-            
+
             logger.debug(f"FAISS search completed: {len(indices[0])} results")
-            
+
             # Return flattened results
             return distances[0], indices[0]
-            
+
         except Exception as e:
             logger.exception(f"Error during FAISS search: {e}")
             raise RuntimeError(f"FAISS search failed: {e}") from e
-    
+
     def search_by_text(
-        self, 
-        text: str, 
+        self,
+        text: str,
         k: int = 10,
         embedding_service=None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Search for recipes similar to a text query
-        
+
         Args:
             text: Query text (e.g., "chicken pasta recipe")
             k: Number of results to return
             embedding_service: EmbeddingService instance to encode text
-            
+
         Returns:
             Tuple of (distances, indices)
-            
+
         Raises:
             ValueError: If text is empty or embedding_service is None
             RuntimeError: If encoding or search fails
@@ -358,24 +357,24 @@ class FAISSService:
             error_msg = "embedding_service is required for text search. Please provide an EmbeddingService instance."
             logger.error(error_msg)
             raise ValueError(error_msg)
-        
+
         if not text or not text.strip():
             error_msg = "Search text cannot be empty"
             logger.error(error_msg)
             raise ValueError(error_msg)
-        
+
         try:
             logger.debug(f"Encoding text query: '{text[:50]}...' (truncated)")
             # Encode text to embedding
             query_embedding = embedding_service.encode_text(text)
-            
+
             # Search using embedding
             return self.search(query_embedding, k)
-            
+
         except Exception as e:
             logger.exception(f"Error in text search: {e}")
             raise RuntimeError(f"Text search failed: {e}") from e
-    
+
     def search_by_ingredients(
         self,
         ingredients: List[str],
@@ -384,15 +383,15 @@ class FAISSService:
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Search for recipes similar to a list of ingredients
-        
+
         Args:
             ingredients: List of ingredient names
             k: Number of results to return
             embedding_service: EmbeddingService instance to encode text
-            
+
         Returns:
             Tuple of (distances, indices)
-            
+
         Raises:
             ValueError: If ingredients list is empty
             RuntimeError: If search fails
@@ -401,23 +400,23 @@ class FAISSService:
             error_msg = "Ingredients list cannot be empty"
             logger.error(error_msg)
             raise ValueError(error_msg)
-        
+
         try:
             # Mirror the indexing template so query and index vectors meet in the same semantic space
             query_text = f"Malzemeler: {', '.join(ingredients)}."
             logger.debug(f"Searching by ingredients: {ingredients}")
-            
+
             return self.search_by_text(query_text, k, embedding_service)
-            
+
         except Exception as e:
             logger.exception(f"Error in ingredient search: {e}")
             raise RuntimeError(f"Ingredient search failed: {e}") from e
-    
+
     def get_index_info(self) -> dict:
         """Get information about the loaded index"""
         if not self.index:
             return {"loaded": False}
-        
+
         return {
             "loaded": True,
             "index_type": type(self.index).__name__,
@@ -430,4 +429,3 @@ class FAISSService:
 
 # Singleton instance
 faiss_service = FAISSService()
-

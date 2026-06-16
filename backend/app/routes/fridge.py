@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from app.models.fridge import FridgeRequest, FridgeResponse
 from app.middleware.auth import get_current_user
 from app.services.database_service import database_service
@@ -21,4 +21,3 @@ async def save_ingredients(request: FridgeRequest, user: Annotated[dict, Depends
         message="Ingredients saved",
         ingredients=request.ingredients
     )
-

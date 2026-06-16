@@ -1,6 +1,4 @@
 """Survey endpoint testleri."""
-import pytest
-
 
 async def test_survey_requires_auth(client):
     r = await client.post(

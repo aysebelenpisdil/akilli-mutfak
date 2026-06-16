@@ -6,9 +6,6 @@ Sentetik 3-tarif korpusu üzerinde el-hesabıyla doğrulanmış beklentiler.
 
 import os
 import sys
-import tempfile
-
-import numpy as np
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

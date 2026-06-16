@@ -1,6 +1,4 @@
 """Feedback endpoint testleri — auth gerekli, UPSERT ve toggle mantığı."""
-import pytest
-
 
 # ── Auth guard ────────────────────────────────────────────────────────────────
 
