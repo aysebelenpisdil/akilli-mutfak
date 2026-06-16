@@ -62,9 +62,9 @@ async def get_features(user: Annotated[dict, Depends(get_current_user)]):
 
 @router.get("/history")
 async def get_history(
+    user: Annotated[dict, Depends(get_current_user)],
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    user: Annotated[dict, Depends(get_current_user)],
 ):
     interactions = await database_service.get_interaction_history(user["id"], limit, offset)
     return {"interactions": interactions, "count": len(interactions)}
@@ -72,9 +72,9 @@ async def get_history(
 
 @router.get("/consumption-history")
 async def get_consumption_history(
+    user: Annotated[dict, Depends(get_current_user)],
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    user: Annotated[dict, Depends(get_current_user)],
 ):
     logs = await database_service.get_consumption_history(user["id"], limit, offset)
     return {"consumption_logs": logs, "count": len(logs)}
