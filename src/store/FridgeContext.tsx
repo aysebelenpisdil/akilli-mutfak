@@ -101,7 +101,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     useEffect(() => {
         if (!user) {
             const sanitized: string[] = Array.isArray(fridgeIngredients)
-                ? fridgeIngredients.reduce<string[]>((acc, i) => { if (typeof i === 'string') acc.push(String(i)); return acc; }, [])
+                ? fridgeIngredients.reduce<string[]>((acc, i) => { if (typeof i === 'string') { acc.push(String(i)); } return acc; }, [])
                 : [];
             try { localStorage.setItem('fridgeIngredients', JSON.stringify(sanitized)); } catch { /* storage unavailable */ }
             return;
@@ -130,7 +130,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 nutAllergy: Boolean(dietaryPreferences.nutAllergy),
             };
             const sanitizedExcluded: string[] = Array.isArray(excludedIngredients)
-                ? excludedIngredients.reduce<string[]>((acc, i) => { if (typeof i === 'string') acc.push(String(i)); return acc; }, [])
+                ? excludedIngredients.reduce<string[]>((acc, i) => { if (typeof i === 'string') { acc.push(String(i)); } return acc; }, [])
                 : [];
             try {
                 localStorage.setItem('dietaryPreferences', JSON.stringify(safeDietary));
