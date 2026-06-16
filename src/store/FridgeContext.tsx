@@ -87,7 +87,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         if (!user) {
-            localStorage.setItem('fridgeIngredients', JSON.stringify(fridgeIngredients));
+            localStorage.setItem('fridgeIngredients', JSON.stringify(fridgeIngredients.map(String)));
             return;
         }
         if (skipFridgeSaveRef.current) {
@@ -106,8 +106,9 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         if (!user) {
-            localStorage.setItem('dietaryPreferences', JSON.stringify(dietaryPreferences));
-            localStorage.setItem('excludedIngredients', JSON.stringify(excludedIngredients));
+            const safeDietary = Object.fromEntries(Object.entries(dietaryPreferences).map(([k, v]) => [String(k), Boolean(v)]));
+            localStorage.setItem('dietaryPreferences', JSON.stringify(safeDietary));
+            localStorage.setItem('excludedIngredients', JSON.stringify(excludedIngredients.map(String)));
             return;
         }
         if (skipPrefsSaveRef.current) {

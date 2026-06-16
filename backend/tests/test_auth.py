@@ -1,5 +1,6 @@
 """Auth (magic link, session, logout) endpoint testleri."""
 
+import os
 
 async def test_magic_link_request(client):
     r = await client.post("/api/auth/magic-link", json={"email": "test@example.com"})
@@ -66,7 +67,8 @@ async def test_logout_clears_session(client):
 
 
 async def test_invalid_token_rejected(client):
-    r = await client.post("/api/auth/verify", json={"token": "not-a-real-token"})
+    invalid_token = os.getenv("TEST_INVALID_TOKEN", "not-a-real-token")
+    r = await client.post("/api/auth/verify", json={"token": invalid_token})
     assert r.status_code in (400, 401, 422)
 
 

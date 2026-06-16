@@ -418,7 +418,7 @@ export const deleteInteractionByRecipe = async (
 };
 
 export const deleteInteraction = async (id: number): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/feedback/interaction/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/feedback/interaction/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include',
     });

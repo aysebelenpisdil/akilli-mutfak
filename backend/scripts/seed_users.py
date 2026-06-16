@@ -32,7 +32,8 @@ from app.database import engine
 from sqlalchemy import text
 
 # ─── Sabit şifre ──────────────────────────────────────────────────────────────
-PASSWORD = "Test123456"
+import os as _os
+PASSWORD = _os.getenv("SEED_USER_PASSWORD", "Test123456")
 
 # ─── Kullanıcı profilleri ──────────────────────────────────────────────────────
 # Her kullanıcı için sabit UUID kullanıyoruz (tekrar çalıştırılabilir)
