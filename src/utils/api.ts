@@ -28,12 +28,7 @@ const handleApiError = async (response: Response): Promise<never> => {
         errorMessage = `Sunucu hatası: ${response.status} ${response.statusText}`;
     }
     
-    const error: ApiError = {
-        message: errorMessage,
-        status: response.status
-    };
-    
-    throw error;
+    throw new ApiError(errorMessage, response.status);
 };
 
 /**
