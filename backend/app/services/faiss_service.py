@@ -150,88 +150,92 @@ class FAISSService:
             logger.exception(f"Error saving FAISS index: {e}")
             raise
 
-    def load_index(self) -> bool:
-        """
-        Load FAISS index from disk
+    def _check_index_file(self) -> bool:
+        """Return True if index file exists and is non-empty."""
+        if not self.index_path.exists():
+            logger.warning(f"FAISS index file not found: {self.index_path}")
+            logger.info(_FALLBACK_MSG)
+            return False
+        file_size = self.index_path.stat().st_size
+        if file_size == 0:
+            logger.error(f"FAISS index file is empty: {self.index_path}")
+            logger.warning(_FALLBACK_MSG)
+            return False
+        logger.debug(f"Loading FAISS index from {self.index_path} (size: {file_size} bytes)")
+        return True
 
-        Returns:
-            True if successful, False otherwise
-        """
+    def _read_faiss_index(self):
+        """Read the FAISS index from disk. Returns index object or None on failure."""
+        try:
+            return faiss.read_index(str(self.index_path))
+        except Exception as e:
+            logger.exception(f"Failed to read FAISS index file. The file may be corrupted: {e}")
+            logger.warning(_FALLBACK_MSG)
+            return None
+
+    def _validate_loaded_index(self) -> bool:
+        """Return True if the loaded index has vectors and correct dimension."""
+        if self.index.ntotal == 0:
+            logger.warning("FAISS index contains no vectors")
+            return False
+        if self.index.d != self.dimension:
+            logger.error(
+                f"Index dimension mismatch: expected {self.dimension}, "
+                f"got {self.index.d}. Index may be incompatible."
+            )
+            logger.warning(_FALLBACK_MSG)
+            return False
+        logger.info(f"FAISS index loaded successfully from: {self.index_path}")
+        logger.info(f"  Index type: {type(self.index).__name__}")
+        logger.info(f"  Total vectors: {self.index.ntotal}")
+        logger.info(f"  Dimension: {self.dimension}")
+        return True
+
+    def _load_optional_metadata(self) -> None:
+        """Load and validate index metadata (best-effort, non-fatal)."""
+        if not self.metadata_path.exists():
+            return
+        try:
+            with open(self.metadata_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            if metadata.get('num_vectors') != self.index.ntotal:
+                logger.warning(
+                    f"Metadata vector count ({metadata.get('num_vectors')}) "
+                    f"doesn't match index ({self.index.ntotal})"
+                )
+            else:
+                logger.info(f"Metadata loaded: {metadata.get('num_vectors', 'unknown')} vectors")
+        except Exception as e:
+            logger.warning(f"Failed to load metadata: {e}")
+
+    def _load_optional_embeddings(self) -> None:
+        """Load embeddings numpy file for reference (best-effort, non-fatal)."""
+        embeddings_path = self.index_path.parent / 'recipe_embeddings.npy'
+        if not embeddings_path.exists():
+            return
+        try:
+            self.embeddings = np.load(embeddings_path)
+            logger.debug(f"Embeddings loaded: {self.embeddings.shape}")
+        except Exception as e:
+            logger.debug(f"Failed to load embeddings file (optional): {e}")
+
+    def load_index(self) -> bool:
+        """Load FAISS index from disk. Returns True if successful."""
         if not FAISS_AVAILABLE:
             logger.warning("faiss is not installed — vector search unavailable, using string matching fallback")
             return False
         try:
-            if not self.index_path.exists():
-                logger.warning(f"FAISS index file not found: {self.index_path}")
-                logger.info(_FALLBACK_MSG)
+            if not self._check_index_file():
                 return False
-
-            # Check file size (basic validation)
-            file_size = self.index_path.stat().st_size
-            if file_size == 0:
-                logger.error(f"FAISS index file is empty: {self.index_path}")
-                logger.warning(_FALLBACK_MSG)
+            self.index = self._read_faiss_index()
+            if self.index is None:
                 return False
-
-            logger.debug(f"Loading FAISS index from {self.index_path} (size: {file_size} bytes)")
-
-            # Load FAISS index
-            try:
-                self.index = faiss.read_index(str(self.index_path))
-            except Exception as e:
-                logger.exception(
-                    f"Failed to read FAISS index file. The file may be corrupted: {e}"
-                )
-                logger.warning(_FALLBACK_MSG)
+            if not self._validate_loaded_index():
                 return False
-
-            # Validate index
-            if self.index.ntotal == 0:
-                logger.warning("FAISS index contains no vectors")
-                return False
-
-            if self.index.d != self.dimension:
-                logger.error(
-                    f"Index dimension mismatch: expected {self.dimension}, "
-                    f"got {self.index.d}. Index may be incompatible."
-                )
-                logger.warning(_FALLBACK_MSG)
-                return False
-
-            logger.info(f"FAISS index loaded successfully from: {self.index_path}")
-            logger.info(f"  Index type: {type(self.index).__name__}")
-            logger.info(f"  Total vectors: {self.index.ntotal}")
-            logger.info(f"  Dimension: {self.dimension}")
-
-            # Load metadata
-            if self.metadata_path.exists():
-                try:
-                    with open(self.metadata_path, 'r', encoding='utf-8') as f:
-                        metadata = json.load(f)
-
-                    # Validate metadata
-                    if metadata.get('num_vectors') != self.index.ntotal:
-                        logger.warning(
-                            f"Metadata vector count ({metadata.get('num_vectors')}) "
-                            f"doesn't match index ({self.index.ntotal})"
-                        )
-                    else:
-                        logger.info(f"Metadata loaded: {metadata.get('num_vectors', 'unknown')} vectors")
-                except Exception as e:
-                    logger.warning(f"Failed to load metadata: {e}")
-
-            # Load embeddings (for reference, not required for search)
-            embeddings_path = self.index_path.parent / 'recipe_embeddings.npy'
-            if embeddings_path.exists():
-                try:
-                    self.embeddings = np.load(embeddings_path)
-                    logger.debug(f"Embeddings loaded: {self.embeddings.shape}")
-                except Exception as e:
-                    logger.debug(f"Failed to load embeddings file (optional): {e}")
-
+            self._load_optional_metadata()
+            self._load_optional_embeddings()
             self._index_loaded = True
             return True
-
         except FileNotFoundError:
             logger.warning(f"FAISS index file not found: {self.index_path}")
             logger.info(_FALLBACK_MSG)

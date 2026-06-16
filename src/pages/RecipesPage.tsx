@@ -9,7 +9,7 @@ import RecipeSurvey from '../components/RecipeSurvey';
 import { Link } from 'react-router-dom';
 import { filterRecipes, getActiveFilterLabels } from '../utils/recipeFilter';
 import { getCalorieLabel } from '../utils/calorieEstimator';
-import { parseIngredientList, computeRecipeAvailability, type RecipeAvailability } from '../utils/helpers';
+import { parseIngredientList, computeRecipeAvailability } from '../utils/helpers';
 
 const RECIPES_PER_PAGE = 12;
 

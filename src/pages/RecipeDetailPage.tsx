@@ -17,6 +17,38 @@ function calorieLabelBadgeClass(label: string | null): string {
     return 'bg-red-500 text-white';
 }
 
+function CookButtonContent({ cookLoading, cookLogged }: { cookLoading: boolean; cookLogged: boolean }) {
+    if (cookLoading) {
+        return (
+            <>
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Kaydediliyor...
+            </>
+        );
+    }
+    if (cookLogged) {
+        return (
+            <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Kaydedildi
+            </>
+        );
+    }
+    return (
+        <>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Pişirdim - Kaydet
+        </>
+    );
+}
+
 const MEAL_OPTIONS: { value: MealType; label: string }[] = [
     { value: 'breakfast', label: 'Kahvaltı' },
     { value: 'lunch', label: 'Öğle' },
@@ -444,29 +476,7 @@ const RecipeDetailPage: React.FC = () => {
                                                     : 'bg-primary text-white hover:bg-secondary disabled:opacity-70'
                                             }`}
                                         >
-                                            {cookLoading ? (
-                                                <>
-                                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                    </svg>
-                                                    Kaydediliyor...
-                                                </>
-                                            ) : cookLogged ? (
-                                                <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                    </svg>
-                                                    Kaydedildi
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                    </svg>
-                                                    Pişirdim - Kaydet
-                                                </>
-                                            )}
+                                            <CookButtonContent cookLoading={cookLoading} cookLogged={cookLogged} />
                                         </button>
                                     </div>
                                 </div>

@@ -2,12 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useFridge } from '../store/FridgeContext';
 import { useRecipes } from '../store/RecipeContext';
 import { checkHealth } from '../utils/api';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-    getIngredientDetails, 
+import { useNavigate } from 'react-router-dom';
+import {
+    getIngredientDetails,
     groupIngredientsByCategory,
     sortCategories,
-    CATEGORY_EMOJIS 
+    CATEGORY_EMOJIS
 } from '../constants/ingredientData';
 import { useIngredientSearch, useTrackIngredient } from '../hooks/useIngredientSearch';
 import cleanedIngredients from '../data/cleanedIngredients.json';
@@ -22,10 +22,10 @@ const FridgePage: React.FC = () => {
     const [isNavigating, setIsNavigating] = useState(false);
 
     // V3: Advanced ingredient search with all features
-    const { 
-        suggestions: searchResults, 
+    const {
+        suggestions: searchResults,
         totalMatches,
-        recentIngredients 
+        recentIngredients
     } = useIngredientSearch(searchTerm, {
         maxResults: 20,
         minQueryLength: 1,
@@ -36,7 +36,7 @@ const FridgePage: React.FC = () => {
 
     // Filter out already added ingredients
     const suggestions = useMemo(() => {
-        return searchResults.filter(result => 
+        return searchResults.filter(result =>
             !fridgeIngredients.includes(result.name)
         );
     }, [searchResults, fridgeIngredients]);
@@ -92,11 +92,14 @@ const FridgePage: React.FC = () => {
                         className="ml-2 group relative"
                         title="Sunucu Durumu"
                     >
-                        <span className={`inline-flex h-3 w-3 rounded-full ${
-                            backendStatus === 'online' ? 'bg-green-500' :
-                            backendStatus === 'offline' ? 'bg-red-500' :
-                            'bg-yellow-500 animate-pulse'
-                        }`}></span>
+                        {(() => {
+                            const statusDotClass: Record<string, string> = {
+                                online: 'bg-green-500',
+                                offline: 'bg-red-500',
+                            };
+                            const dotClass = statusDotClass[backendStatus] ?? 'bg-yellow-500 animate-pulse';
+                            return <span className={`inline-flex h-3 w-3 rounded-full ${dotClass}`}></span>;
+                        })()}
                         <span className="absolute -bottom-8 right-0 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
                             {(() => {
                                 const statusLabel: Record<string, string> = { online: 'Çevrimiçi', offline: 'Çevrimdışı' };
@@ -112,7 +115,7 @@ const FridgePage: React.FC = () => {
                     <div className="mt-4 max-w-xl mx-auto">
                         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                             <p className="text-sm text-yellow-800">
-                                ⚠️ Sunucu çevrimdışı. Tarifler statik veriden yüklenecek. 
+                                ⚠️ Sunucu çevrimdışı. Tarifler statik veriden yüklenecek.
                                 <button onClick={checkBackendStatus} className="ml-1 underline font-medium hover:text-yellow-900">
                                     Tekrar Dene
                                 </button>
@@ -284,10 +287,10 @@ const FridgePage: React.FC = () => {
                         {sortedCategories.map((category) => {
                             const ingredients = groupedIngredients[category];
                             const isOtherCategory = category === 'Diğer' || category.toLowerCase() === 'other' || category.toLowerCase() === 'diğer';
-                            
+
                             return (
-                                <div 
-                                    key={category} 
+                                <div
+                                    key={category}
                                     className={`bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border border-gray-100 ${
                                         isOtherCategory ? 'mt-8 pt-6 border-t-2 border-gray-300' : ''
                                     }`}
@@ -298,19 +301,19 @@ const FridgePage: React.FC = () => {
                                         <h3 className="font-semibold text-gray-800 text-lg">{category}</h3>
                                         <span className="ml-auto text-sm text-gray-500">{ingredients.length}</span>
                                     </div>
-                                    
+
                                     {/* Ingredients in Category */}
                                     <div className="flex flex-wrap gap-2">
                                         {ingredients.map((ing) => {
                                             const details = getIngredientDetails(ing);
                                             return (
-                                                <div 
-                                                    key={ing} 
+                                                <div
+                                                    key={ing}
                                                     className="group relative bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 hover:shadow-md hover:border-primary transition-all"
                                                 >
                                                     <span className="text-xl">{details.emoji}</span>
                                                     <span className="font-medium text-gray-700 text-sm capitalize">{details.label}</span>
-                                                    <button 
+                                                    <button
                                                         onClick={() => removeIngredient(ing)}
                                                         className="ml-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                                         title="Kaldır"
@@ -328,7 +331,7 @@ const FridgePage: React.FC = () => {
                         })}
                     </div>
                 )}
-                
+
                 {fridgeIngredients.length > 0 && (
                     <div className="mt-8 text-center">
                         <button

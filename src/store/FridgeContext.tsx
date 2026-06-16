@@ -152,7 +152,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const setDietaryPreferences = useCallback((prefs: DietaryPreferences) => {
         setDietaryPreferencesState(prefs);
-    }, [dietaryPreferences]);
+    }, []);
 
     const toggleExcludedIngredient = useCallback((ingredient: string) => {
         if (excludedIngredients.includes(ingredient)) {

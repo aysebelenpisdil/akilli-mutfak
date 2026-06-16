@@ -291,7 +291,6 @@ async def rag_recommend(
             top_k=top_k,
             explain=explain,
             retrieval_top_k=retrieval_top_k,
-            user_id=user_id,
             user_history=user_history,
             cf_scores=cf_scores,
         )

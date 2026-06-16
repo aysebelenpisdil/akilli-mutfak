@@ -16,9 +16,16 @@ from app.services.tfidf_service import TFIDFService, _clean_ingredients_text
 # ---------- dummy recipe fixture ----------
 
 class DummyRecipe:
+    _aliases = {'Title': 'title', 'Cleaned_Ingredients': 'cleaned_ingredients'}
+
     def __init__(self, title: str, cleaned_ingredients: str):
-        self.Title = title
-        self.Cleaned_Ingredients = cleaned_ingredients
+        self.title = title
+        self.cleaned_ingredients = cleaned_ingredients
+
+    def __getattr__(self, name: str) -> str:
+        if name in DummyRecipe._aliases:
+            return object.__getattribute__(self, DummyRecipe._aliases[name])
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
 
 CORPUS = [

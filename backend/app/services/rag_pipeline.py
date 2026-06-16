@@ -243,7 +243,6 @@ class RAGPipeline:
         top_k: int = 10,
         explain: bool = True,
         retrieval_top_k: int = 50,
-        user_id: Optional[str] = None,
         user_history: Optional[Dict[str, str]] = None,
         cf_scores: Optional[Dict[str, float]] = None,
         use_hybrid: bool = True,

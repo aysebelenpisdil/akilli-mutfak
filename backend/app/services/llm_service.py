@@ -85,36 +85,47 @@ class LLMService:
         """Check if LLM service is available and ready"""
         return self.enabled and self._model_loaded and self.client is not None
 
+    def _get_quota_delay(self, msg: str) -> float:
+        """Extract retry delay (seconds) from a Gemini 429 error message."""
+        match = re.search(r'retry in (\d+(?:\.\d+)?)s', msg, re.I)
+        return min(float(match.group(1)) if match else 20, 60)
+
+    def _try_with_model(self, model_name: str, prompt: str, config, max_retries: int, is_last_model: bool):
+        """Attempt generation with one model, retrying on quota errors.
+
+        Returns the API response on success, None to signal 'try next model',
+        or raises on a non-retryable error.
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                return self.client.models.generate_content(
+                    model=model_name, contents=prompt, config=config
+                )
+            except ClientError as e:
+                if e.code != 429:
+                    raise
+                if attempt < max_retries:
+                    delay = self._get_quota_delay(str(e))
+                    logger.warning(f"Gemini quota (429), {delay:.0f}s sonra tekrar deniyor...")
+                    time.sleep(delay)
+                elif not is_last_model:
+                    logger.info(f"Ana model kota aşıldı, fallback ({self.fallback_model}) deneniyor...")
+                    return None
+                else:
+                    logger.warning("Gemini API kota aşıldı (429)")
+                    raise
+        return None
+
     def _try_generate_with_retry(self, prompt: str, config: types.GenerateContentConfig, max_retries: int = 1):
         """429 quota hatasında retry ve model fallback dene."""
         models_to_try = [self.model_name]
         if self.fallback_model and self.model_name != self.fallback_model:
             models_to_try.append(self.fallback_model)
 
-        for model_name in models_to_try:
-            for attempt in range(max_retries + 1):
-                try:
-                    return self.client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                        config=config,
-                    )
-                except ClientError as e:
-                    if e.code == 429:
-                        msg = str(e)
-                        if attempt < max_retries:
-                            match = re.search(r'retry in (\d+(?:\.\d+)?)s', msg, re.I)
-                            delay = min(float(match.group(1)) if match else 20, 60)
-                            logger.warning(f"Gemini quota (429), {delay:.0f}s sonra tekrar deniyor...")
-                            time.sleep(delay)
-                        elif model_name != models_to_try[-1]:
-                            logger.info(f"Ana model kota aşıldı, fallback ({self.fallback_model}) deneniyor...")
-                            break
-                        else:
-                            logger.warning("Gemini API kota aşıldı (429)")
-                            raise
-                    else:
-                        raise
+        for i, model_name in enumerate(models_to_try):
+            result = self._try_with_model(model_name, prompt, config, max_retries, i == len(models_to_try) - 1)
+            if result is not None:
+                return result
 
     # Interaction type → human-readable Turkish label for prompt injection
     _HISTORY_LABELS: Dict[str, str] = {

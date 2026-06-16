@@ -54,63 +54,46 @@ function levenshteinDistance(str1: string, str2: string): number {
   return matrix[len1][len2];
 }
 
+type MatchResult = { matches: boolean; score: number; matchType: 'exact' | 'starts' | 'contains' | 'fuzzy' | 'synonym' };
+
+function _matchesMultiWord(queryWords: string[], nameWords: string[]): boolean {
+  if (queryWords.length <= 1 || nameWords.length <= 1) return false;
+  return queryWords.every(qw => nameWords.some(nw => nw.includes(qw) || qw.includes(nw)));
+}
+
+function _fuzzyWordScore(query: string, nameWords: string[], maxDistance: number): number {
+  for (const word of nameWords) {
+    if (word.length >= 4 && levenshteinDistance(query, word) <= maxDistance) {
+      return 550 - levenshteinDistance(query, word) * 50;
+    }
+  }
+  return -1;
+}
+
 /**
  * Check if ingredient matches query (with fuzzy and synonym support)
  */
-function matchesQuery(
-  ingredient: CleanedIngredient,
-  query: string,
-  enableFuzzy: boolean
-): { matches: boolean; score: number; matchType: 'exact' | 'starts' | 'contains' | 'fuzzy' | 'synonym' } {
+function matchesQuery(ingredient: CleanedIngredient, query: string, enableFuzzy: boolean): MatchResult {
   const name = ingredient.name.toLowerCase();
-  const normalizedQuery = query.toLowerCase();
+  const q = query.toLowerCase();
 
-  // Exact match
-  if (name === normalizedQuery) {
-    return { matches: true, score: 1000, matchType: 'exact' };
-  }
+  if (name === q) return { matches: true, score: 1000, matchType: 'exact' };
+  if (name.startsWith(q)) return { matches: true, score: 900, matchType: 'starts' };
+  if (name.includes(q)) return { matches: true, score: 800, matchType: 'contains' };
 
-  // Starts with
-  if (name.startsWith(normalizedQuery)) {
-    return { matches: true, score: 900, matchType: 'starts' };
-  }
-
-  // Contains
-  if (name.includes(normalizedQuery)) {
-    return { matches: true, score: 800, matchType: 'contains' };
-  }
-
-  // Multi-word support (word order independent)
-  const queryWords = normalizedQuery.split(' ').filter(w => w.length > 0);
+  const queryWords = q.split(' ').filter(w => w.length > 0);
   const nameWords = name.split(' ').filter(w => w.length > 0);
 
-  if (queryWords.length > 1 && nameWords.length > 1) {
-    const allWordsMatch = queryWords.every(qw =>
-      nameWords.some(nw => nw.includes(qw) || qw.includes(nw))
-    );
-    if (allWordsMatch) {
-      return { matches: true, score: 750, matchType: 'contains' };
-    }
+  if (_matchesMultiWord(queryWords, nameWords)) {
+    return { matches: true, score: 750, matchType: 'contains' };
   }
 
-  // Fuzzy matching (typo tolerance)
-  if (enableFuzzy && normalizedQuery.length >= 4) {
-    const distance = levenshteinDistance(normalizedQuery, name);
-    const maxDistance = Math.floor(normalizedQuery.length / 3); // Allow 1 typo per 3 chars
-
-    if (distance <= maxDistance) {
-      return { matches: true, score: 600 - (distance * 50), matchType: 'fuzzy' };
-    }
-
-    // Check fuzzy match on individual words
-    for (const word of nameWords) {
-      if (word.length >= 4) {
-        const wordDistance = levenshteinDistance(normalizedQuery, word);
-        if (wordDistance <= maxDistance) {
-          return { matches: true, score: 550 - (wordDistance * 50), matchType: 'fuzzy' };
-        }
-      }
-    }
+  if (enableFuzzy && q.length >= 4) {
+    const maxDistance = Math.floor(q.length / 3);
+    const wholeDist = levenshteinDistance(q, name);
+    if (wholeDist <= maxDistance) return { matches: true, score: 600 - wholeDist * 50, matchType: 'fuzzy' };
+    const wordScore = _fuzzyWordScore(q, nameWords, maxDistance);
+    if (wordScore >= 0) return { matches: true, score: wordScore, matchType: 'fuzzy' };
   }
 
   return { matches: false, score: 0, matchType: 'exact' };
