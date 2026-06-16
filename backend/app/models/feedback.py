@@ -64,9 +64,9 @@ class UserFeatures(BaseModel):
     total_likes: int
     total_skips: int
     total_cooked: int
-    avg_portion: Optional[float]
-    preferred_meal_type: Optional[str]
+    avg_portion: Optional[float] = None
+    preferred_meal_type: Optional[str] = None
     weekly_repeat_count: int
-    like_skip_ratio: Optional[float]
+    like_skip_ratio: Optional[float] = None
     top_liked_recipes: List[str]
     weekly_repeats: List[str]

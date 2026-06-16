@@ -30,7 +30,7 @@ def _set_session_cookie(response: Response, session_id: str):
     )
 
 
-@router.post("/supabase-session", response_model=SessionInfo)
+@router.post("/supabase-session", response_model=SessionInfo, responses={503: {"description": "Service Unavailable"}})
 @limiter.limit("10/minute")
 async def create_supabase_session(request: Request, body: SupabaseSessionRequest, response: Response):
     """
