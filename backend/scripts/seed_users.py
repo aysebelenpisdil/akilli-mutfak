@@ -20,7 +20,7 @@ Gereksinimler:
 import asyncio
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -300,7 +300,7 @@ async def insert_interactions(conn, user: dict) -> None:
         text("DELETE FROM recipe_interactions WHERE user_id = :uid"),
         {"uid": user["id"]},
     )
-    base_date = datetime.now(timezone.utc) - timedelta(days=30)
+    base_date = datetime.utcnow() - timedelta(days=30)
     for i, (itype, title, ctx_ingredients) in enumerate(user["interactions"]):
         created_at = base_date + timedelta(days=i * 2, hours=i)
         await conn.execute(
@@ -329,7 +329,7 @@ async def insert_consumption(conn, user: dict) -> None:
         text("DELETE FROM consumption_logs WHERE user_id = :uid"),
         {"uid": user["id"]},
     )
-    base_date = datetime.now(timezone.utc) - timedelta(days=20)
+    base_date = datetime.utcnow() - timedelta(days=20)
     for i, (title, meal_type, portion, rating) in enumerate(user["consumption"]):
         consumed_at = base_date + timedelta(days=i * 3)
         await conn.execute(
