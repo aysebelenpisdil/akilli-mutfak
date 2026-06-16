@@ -50,7 +50,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         safeParseStringList('fridgeIngredients')
     );
 
-    const [dietaryPreferences, setDietaryPreferencesState] = useState<DietaryPreferences>(() => {
+    const [dietaryPreferences, setDietaryPreferences] = useState<DietaryPreferences>(() => {
         try {
             const raw = localStorage.getItem('dietaryPreferences');
             const parsed: unknown = raw ? JSON.parse(raw) : null;
@@ -81,7 +81,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         try {
             const { dietary, excluded } = await getPreferences();
             if (Object.keys(dietary).length > 0) {
-                setDietaryPreferencesState({ ...DEFAULT_DIETARY, ...dietary } as DietaryPreferences);
+                setDietaryPreferences({ ...DEFAULT_DIETARY, ...dietary } as DietaryPreferences);
             }
             setExcludedIngredients(excluded);
         } catch {
@@ -149,10 +149,6 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const removeIngredient = useCallback((ingredient: string) => {
         setFridgeIngredients(fridgeIngredients.filter(i => i !== ingredient));
     }, [fridgeIngredients]);
-
-    const setDietaryPreferences = useCallback((prefs: DietaryPreferences) => {
-        setDietaryPreferencesState(prefs);
-    }, []);
 
     const toggleExcludedIngredient = useCallback((ingredient: string) => {
         if (excludedIngredients.includes(ingredient)) {

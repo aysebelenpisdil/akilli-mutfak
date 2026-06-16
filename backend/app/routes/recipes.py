@@ -273,11 +273,10 @@ async def rag_recommend(
         explain = body.explain if body.explain is not None else True
 
         # Fetch interaction history + CF scores for logged-in users
-        user_id: Optional[str] = None
         user_history: Optional[dict] = None
         cf_scores: Optional[dict] = None
         if user:
-            user_id, user_history, cf_scores = await _fetch_user_rag_context(user)
+            _, user_history, cf_scores = await _fetch_user_rag_context(user)
 
         logger.info(
             f"RAG recommendation: {len(body.ingredients)} ingredients, "

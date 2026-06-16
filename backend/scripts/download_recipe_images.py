@@ -39,28 +39,40 @@ def base_title(title: str) -> str:
     return re.sub(r"^(Vegan|Vejetaryen|Glutensiz|Süt Ürünsüz|Laktozsuz|Kuruyemissiz)\s+", "", title, flags=re.I).strip()
 
 
+def _pick_url_from_results(results: list) -> str | None:
+    for r in results:
+        url = r.get("image", "")
+        if url and url.lower().endswith((".jpg", ".jpeg")):
+            return url
+    for r in results:
+        url = r.get("image", "")
+        if url:
+            return url
+    return None
+
+
+def _handle_ddg_error(e: Exception, attempt: int) -> bool:
+    """Returns True if caller should retry, False if caller should abort."""
+    msg = str(e)
+    if "403" in msg or "Ratelimit" in msg:
+        wait = 10 * (attempt + 1)
+        print(f"    rate limit, {wait}s bekleniyor...")
+        time.sleep(wait)
+        return True
+    print(f"    DDG error: {e}")
+    return False
+
+
 def search_image_url(ddgs, query: str):
     """Search using an existing DDGS instance (shared across all calls)."""
     for attempt in range(3):
         try:
             results = list(ddgs.images(query, max_results=3))
-            for r in results:
-                url = r.get("image", "")
-                if url and url.lower().endswith((".jpg", ".jpeg")):
-                    return url
-            for r in results:
-                url = r.get("image", "")
-                if url:
-                    return url
-            return None
+            url = _pick_url_from_results(results)
+            if url is not None:
+                return url
         except Exception as e:
-            msg = str(e)
-            if "403" in msg or "Ratelimit" in msg:
-                wait = 10 * (attempt + 1)
-                print(f"    rate limit, {wait}s bekleniyor...")
-                time.sleep(wait)
-            else:
-                print(f"    DDG error: {e}")
+            if not _handle_ddg_error(e, attempt):
                 return None
     return None
 

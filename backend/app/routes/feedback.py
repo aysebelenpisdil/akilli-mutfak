@@ -100,7 +100,7 @@ async def delete_interaction_by_recipe(
     return {"deleted": deleted}
 
 
-@router.delete("/interaction/{interaction_id}", status_code=204)
+@router.delete("/interaction/{interaction_id}", status_code=204, responses={404: {"description": "Not Found"}})
 async def delete_interaction(
     interaction_id: int,
     user: Annotated[dict, Depends(get_current_user)],

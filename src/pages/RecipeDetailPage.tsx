@@ -17,7 +17,7 @@ function calorieLabelBadgeClass(label: string | null): string {
     return 'bg-red-500 text-white';
 }
 
-function CookButtonContent({ cookLoading, cookLogged }: { cookLoading: boolean; cookLogged: boolean }) {
+function CookButtonContent({ cookLoading, cookLogged }: Readonly<{ cookLoading: boolean; cookLogged: boolean }>) {
     if (cookLoading) {
         return (
             <>
@@ -260,7 +260,7 @@ const RecipeDetailPage: React.FC = () => {
                                     const subs: string[] | undefined = subsKey ? substitutions![subsKey] : undefined;
 
                                     return (
-                                        <li key={`ingredient-${idx}`}>
+                                        <li key={ing}>
                                             <div className="flex items-start">
                                                 <div className={`flex-shrink-0 h-6 w-6 rounded-full border flex items-center justify-center mr-3 mt-0.5 text-xs ${
                                                     isMissing

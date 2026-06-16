@@ -128,6 +128,190 @@ const RecipesPage: React.FC = () => {
         }
     }, [user, fridgeIngredients, likedTitles, pendingLikes]);
 
+    let mainContent: React.ReactNode;
+    if (loading) {
+        mainContent = (
+            <div className="flex flex-col items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mb-4"></div>
+                <p className="text-gray-600">YZ tarifleri analiz ediyor...</p>
+            </div>
+        );
+    } else if (error) {
+        mainContent = (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                <div className="flex">
+                    <div className="ml-3 flex-1">
+                        <p className="text-sm text-red-700">{error}</p>
+                        <button onClick={fetchRecipes} className="mt-2 text-sm font-medium text-red-700 hover:text-red-600 underline">
+                            Tekrar Dene
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    } else if (!hasSearched) {
+        mainContent = (
+            <div className="text-center py-16">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-900">Tarif aramak için buzdolabınıza gidin</h3>
+                <p className="mt-1 text-gray-500">
+                    <Link to="/" className="text-primary hover:underline">Buzdolabım</Link> sayfasındaki &ldquo;Tarif Bul&rdquo; butonuna basın.
+                </p>
+            </div>
+        );
+    } else if (fridgeIngredients.length === 0) {
+        mainContent = (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+                <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                        Buzdolabınız boş! <Link to="/" className="font-medium underline hover:text-yellow-600">Geri dönüp malzeme ekleyin.</Link>
+                    </p>
+                </div>
+            </div>
+        );
+    } else if (suitableRecipes.length === 0) {
+        mainContent = (
+            <div className="text-center py-16">
+                <h3 className="text-lg font-medium text-gray-900">Eşleşen tarif bulunamadı</h3>
+                <p className="mt-1 text-gray-500">Soğan, sarımsak veya yumurta gibi malzemeler eklemeyi deneyin.</p>
+            </div>
+        );
+    } else {
+        mainContent = (
+            <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {displayedRecipes.map((recipe) => {
+                        const availability = availabilityMap.get(recipe.Title)!;
+                        return (
+                            <Link
+                                to={`/recipe/${encodeURIComponent(recipe.Title)}`}
+                                state={{ matchingIngredients: availability.allMatching, recipe }}
+                                key={recipe.Title}
+                                onClick={() => trackView(recipe.Title)}
+                                className={`group flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border ${availability.isFullyAvailable ? 'border-green-300 ring-2 ring-green-100' : 'border-gray-100'}`}
+                            >
+                                <div className="relative h-48 w-full overflow-hidden">
+                                    <RecipeImage
+                                        imageName={recipe.Image_Name}
+                                        alt={recipe.Title}
+                                        className="group-hover:[&_img]:scale-110 [&_img]:transition-transform [&_img]:duration-500"
+                                        size="card"
+                                    />
+                                    <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                                        <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                                            {availability.coveredCount}/{availability.totalCount} Eşleşme
+                                        </span>
+                                        {recipe.estimatedCalories != null && (
+                                            <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg ${calorieBadgeClass(recipe.estimatedCalories!)}`}>
+                                                ~{recipe.estimatedCalories} kcal
+                                            </span>
+                                        )}
+                                    </div>
+                                    {availability.isFullyAvailable && (
+                                        <div className="absolute top-3 left-3">
+                                            <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                MUTFAKTA HAZIR
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                <div className="flex-1 p-6 flex flex-col">
+                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2">
+                                        {recipe.Title}
+                                    </h3>
+                                    <div className="mb-2">
+                                        <p className="text-sm text-gray-600">
+                                            <span className="font-semibold">Eşleşen:</span> {availability.allMatching.join(', ')}
+                                        </p>
+                                    </div>
+                                    {availability.missing.length > 0 && (
+                                        <div className="mb-2">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                                </svg>
+                                                {availability.missing.length} eksik - ikame önerilebilir
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+                                        <span className="text-sm font-medium text-primary">Tarifi Görüntüle &rarr;</span>
+                                        <div className="flex items-center gap-2">
+                                            {availability.missing.length > 0 && (() => {
+                                                const inAny = availability.missing.some(m => isItemInList(m));
+                                                return (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            addItemsFromRecipe(recipe.Title, availability.missing);
+                                                        }}
+                                                        className={`p-1.5 rounded-full transition-colors ${
+                                                            inAny
+                                                                ? 'text-amber-600 bg-amber-50 hover:bg-amber-100'
+                                                                : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                                                        }`}
+                                                        title={`${availability.missing.length} eksik malzemeyi alışveriş listesine ekle`}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                        </svg>
+                                                    </button>
+                                                );
+                                            })()}
+                                            {user && (() => {
+                                                    const isLiked = likedTitles.has(recipe.Title);
+                                                    const isPending = pendingLikes.has(recipe.Title);
+                                                    return (
+                                                        <button
+                                                            onClick={(e) => toggleLike(e, recipe.Title)}
+                                                            disabled={isPending}
+                                                            className={`p-1.5 rounded-full transition-colors ${isLiked ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'} ${isPending ? 'opacity-50 cursor-wait' : ''}`}
+                                                            title={isLiked ? 'Beğenmekten vazgeç' : 'Beğen'}
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill={isLiked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    );
+                                                })()}
+                                            <span className={`text-xs uppercase tracking-wider font-semibold ${availability.isFullyAvailable ? 'text-green-600' : 'text-gray-400'}`}>
+                                                {availability.isFullyAvailable ? 'Mutfakta Hazır' : `${availability.missing.length} Eksik`}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+
+                {displayedRecipes.length < sortedRecipes.length && (
+                    <div className="mt-12 text-center">
+                        <button
+                            onClick={loadMore}
+                            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all"
+                        >
+                            Daha Fazla Tarif Yükle
+                            <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                        <p className="mt-2 text-sm text-gray-500">
+                            {sortedRecipes.length - displayedRecipes.length} tarif daha mevcut
+                        </p>
+                    </div>
+                )}
+            </>
+        );
+    }
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="mb-8">
@@ -173,7 +357,7 @@ const RecipesPage: React.FC = () => {
                                 {Boolean(metadata.retriever_used) && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">FAISS</span>}
                                 {Boolean(metadata.reranker_used) && <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Reranker</span>}
                                 {Boolean(metadata.llm_used) && <span className="px-2 py-1 bg-green-100 text-green-800 rounded">LLM</span>}
-                                <span className="text-gray-500">({metadata.retrieval_count as number} &rarr; {metadata.reranked_count as number})</span>
+                                <span className="text-gray-500">({metadata.retrieval_count} &rarr; {metadata.reranked_count})</span>
                             </div>
                         )}
                     </div>
@@ -225,176 +409,7 @@ const RecipesPage: React.FC = () => {
             </div>
 
             {/* Main content */}
-            {loading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mb-4"></div>
-                    <p className="text-gray-600">YZ tarifleri analiz ediyor...</p>
-                </div>
-            ) : error ? (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-                    <div className="flex">
-                        <div className="ml-3 flex-1">
-                            <p className="text-sm text-red-700">{error}</p>
-                            <button onClick={fetchRecipes} className="mt-2 text-sm font-medium text-red-700 hover:text-red-600 underline">
-                                Tekrar Dene
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : !hasSearched ? (
-                <div className="text-center py-16">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <h3 className="text-lg font-medium text-gray-900">Tarif aramak için buzdolabınıza gidin</h3>
-                    <p className="mt-1 text-gray-500">
-                        <Link to="/" className="text-primary hover:underline">Buzdolabım</Link> sayfasındaki &ldquo;Tarif Bul&rdquo; butonuna basın.
-                    </p>
-                </div>
-            ) : fridgeIngredients.length === 0 ? (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
-                    <div className="ml-3">
-                        <p className="text-sm text-yellow-700">
-                            Buzdolabınız boş! <Link to="/" className="font-medium underline hover:text-yellow-600">Geri dönüp malzeme ekleyin.</Link>
-                        </p>
-                    </div>
-                </div>
-            ) : suitableRecipes.length === 0 ? (
-                <div className="text-center py-16">
-                    <h3 className="text-lg font-medium text-gray-900">Eşleşen tarif bulunamadı</h3>
-                    <p className="mt-1 text-gray-500">Soğan, sarımsak veya yumurta gibi malzemeler eklemeyi deneyin.</p>
-                </div>
-            ) : (
-                <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {displayedRecipes.map((recipe) => {
-                            const availability = availabilityMap.get(recipe.Title)!;
-                            return (
-                                <Link
-                                    to={`/recipe/${encodeURIComponent(recipe.Title)}`}
-                                    state={{ matchingIngredients: availability.allMatching, recipe }}
-                                    key={recipe.Title}
-                                    onClick={() => trackView(recipe.Title)}
-                                    className={`group flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border ${availability.isFullyAvailable ? 'border-green-300 ring-2 ring-green-100' : 'border-gray-100'}`}
-                                >
-                                    <div className="relative h-48 w-full overflow-hidden">
-                                        <RecipeImage
-                                            imageName={recipe.Image_Name}
-                                            alt={recipe.Title}
-                                            className="group-hover:[&_img]:scale-110 [&_img]:transition-transform [&_img]:duration-500"
-                                            size="card"
-                                        />
-                                        <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
-                                            <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                                                {availability.coveredCount}/{availability.totalCount} Eşleşme
-                                            </span>
-                                            {recipe.estimatedCalories != null && (
-                                                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg ${calorieBadgeClass(recipe.estimatedCalories as number)}`}>
-                                                    ~{recipe.estimatedCalories} kcal
-                                                </span>
-                                            )}
-                                        </div>
-                                        {availability.isFullyAvailable && (
-                                            <div className="absolute top-3 left-3">
-                                                <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                    MUTFAKTA HAZIR
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                    <div className="flex-1 p-6 flex flex-col">
-                                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-2 mb-2">
-                                            {recipe.Title}
-                                        </h3>
-                                        <div className="mb-2">
-                                            <p className="text-sm text-gray-600">
-                                                <span className="font-semibold">Eşleşen:</span> {availability.allMatching.join(', ')}
-                                            </p>
-                                        </div>
-                                        {availability.missing.length > 0 && (
-                                            <div className="mb-2">
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                    </svg>
-                                                    {availability.missing.length} eksik - ikame önerilebilir
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
-                                            <span className="text-sm font-medium text-primary">Tarifi Görüntüle &rarr;</span>
-                                            <div className="flex items-center gap-2">
-                                                {availability.missing.length > 0 && (() => {
-                                                    const inAny = availability.missing.some(m => isItemInList(m));
-                                                    return (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                addItemsFromRecipe(recipe.Title, availability.missing);
-                                                            }}
-                                                            className={`p-1.5 rounded-full transition-colors ${
-                                                                inAny
-                                                                    ? 'text-amber-600 bg-amber-50 hover:bg-amber-100'
-                                                                    : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
-                                                            }`}
-                                                            title={`${availability.missing.length} eksik malzemeyi alışveriş listesine ekle`}
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                            </svg>
-                                                        </button>
-                                                    );
-                                                })()}
-                                                {user && (() => {
-                                                        const isLiked = likedTitles.has(recipe.Title);
-                                                        const isPending = pendingLikes.has(recipe.Title);
-                                                        return (
-                                                            <button
-                                                                onClick={(e) => toggleLike(e, recipe.Title)}
-                                                                disabled={isPending}
-                                                                className={`p-1.5 rounded-full transition-colors ${isLiked ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'} ${isPending ? 'opacity-50 cursor-wait' : ''}`}
-                                                                title={isLiked ? 'Beğenmekten vazgeç' : 'Beğen'}
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill={isLiked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                                                </svg>
-                                                            </button>
-                                                        );
-                                                    })()}
-                                                <span className={`text-xs uppercase tracking-wider font-semibold ${availability.isFullyAvailable ? 'text-green-600' : 'text-gray-400'}`}>
-                                                    {availability.isFullyAvailable ? 'Mutfakta Hazır' : `${availability.missing.length} Eksik`}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Link>
-                            );
-                        })}
-                    </div>
-
-                    {displayedRecipes.length < sortedRecipes.length && (
-                        <div className="mt-12 text-center">
-                            <button
-                                onClick={loadMore}
-                                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all"
-                            >
-                                Daha Fazla Tarif Yükle
-                                <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                            </button>
-                            <p className="mt-2 text-sm text-gray-500">
-                                {sortedRecipes.length - displayedRecipes.length} tarif daha mevcut
-                            </p>
-                        </div>
-                    )}
-                </>
-            )}
+            {mainContent}
         </div>
     );
 };

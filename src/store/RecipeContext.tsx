@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { useFridge } from './FridgeContext';
 import { getRAGRecommendations, ApiError } from '../utils/api';
-import { RecipeWithMatch } from '../types';
+import { RecipeWithMatch, RAGMetadata } from '../types';
 import { estimateRecipeCalories } from '../utils/calorieEstimator';
 import type { CalorieRange } from '../utils/recipeFilter';
 
@@ -33,7 +33,7 @@ interface RecipeContextType {
     loading: boolean;
     error: string | null;
     explanation: string | null;
-    metadata: Record<string, unknown> | null;
+    metadata: RAGMetadata | null;
     responseTime: number | null;
     calorieFilter: CalorieFilterKey;
     setCalorieFilter: (v: CalorieFilterKey) => void;
@@ -52,7 +52,7 @@ export const RecipeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [explanation, setExplanation] = useState<string | null>(null);
-    const [metadata, setMetadata] = useState<Record<string, unknown> | null>(null);
+    const [metadata, setMetadata] = useState<RAGMetadata | null>(null);
     const [responseTime, setResponseTime] = useState<number | null>(null);
     const [calorieFilter, setCalorieFilter] = useState<CalorieFilterKey>('all');
     const [page, setPage] = useState(1);
@@ -88,7 +88,7 @@ export const RecipeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setResponseTime(Math.round(performance.now() - startTime));
             setRawRecipes(enrichWithCalories(ragResponse.recipes || []));
             setExplanation(ragResponse.explanation || null);
-            setMetadata((ragResponse.metadata as unknown as Record<string, unknown>) || null);
+            setMetadata(ragResponse.metadata || null);
         } catch (err) {
             setError((err as ApiError).message || 'Bir hata oluştu');
             setRawRecipes([]);
