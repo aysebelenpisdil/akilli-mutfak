@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { getFridgeIngredients, saveFridgeIngredients, getPreferences, savePreferences } from '../utils/api';
 
@@ -87,7 +87,8 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         if (!user) {
-            localStorage.setItem('fridgeIngredients', JSON.stringify(fridgeIngredients.map(String)));
+            const sanitized = Array.isArray(fridgeIngredients) ? fridgeIngredients.filter(i => typeof i === 'string') : [];
+            localStorage.setItem('fridgeIngredients', JSON.stringify(sanitized));
             return;
         }
         if (skipFridgeSaveRef.current) {
@@ -108,7 +109,8 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (!user) {
             const safeDietary = Object.fromEntries(Object.entries(dietaryPreferences).map(([k, v]) => [String(k), Boolean(v)]));
             localStorage.setItem('dietaryPreferences', JSON.stringify(safeDietary));
-            localStorage.setItem('excludedIngredients', JSON.stringify(excludedIngredients.map(String)));
+            const sanitizedExcluded = Array.isArray(excludedIngredients) ? excludedIngredients.filter(i => typeof i === 'string') : [];
+            localStorage.setItem('excludedIngredients', JSON.stringify(sanitizedExcluded));
             return;
         }
         if (skipPrefsSaveRef.current) {
@@ -125,38 +127,41 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         };
     }, [user?.id, dietaryPreferences, excludedIngredients]);
 
-    const addIngredient = (ingredient: string) => {
+    const addIngredient = useCallback((ingredient: string) => {
         if (!fridgeIngredients.includes(ingredient)) {
             setFridgeIngredients([...fridgeIngredients, ingredient]);
         }
-    };
+    }, [fridgeIngredients]);
 
-    const removeIngredient = (ingredient: string) => {
+    const removeIngredient = useCallback((ingredient: string) => {
         setFridgeIngredients(fridgeIngredients.filter(i => i !== ingredient));
-    };
+    }, [fridgeIngredients]);
 
-    const setDietaryPreferences = (prefs: DietaryPreferences) => {
+    const setDietaryPreferences = useCallback((prefs: DietaryPreferences) => {
         setDietaryPreferencesState(prefs);
-    };
+    }, []);
 
-    const toggleExcludedIngredient = (ingredient: string) => {
+    const toggleExcludedIngredient = useCallback((ingredient: string) => {
         if (excludedIngredients.includes(ingredient)) {
             setExcludedIngredients(excludedIngredients.filter(i => i !== ingredient));
         } else {
             setExcludedIngredients([...excludedIngredients, ingredient]);
         }
-    };
+    }, [excludedIngredients]);
+
+    const contextValue = useMemo(() => ({
+        fridgeIngredients,
+        addIngredient,
+        removeIngredient,
+        dietaryPreferences,
+        setDietaryPreferences,
+        excludedIngredients,
+        toggleExcludedIngredient,
+    }), [fridgeIngredients, addIngredient, removeIngredient, dietaryPreferences,
+        setDietaryPreferences, excludedIngredients, toggleExcludedIngredient]);
 
     return (
-        <FridgeContext.Provider value={{ 
-            fridgeIngredients, 
-            addIngredient, 
-            removeIngredient,
-            dietaryPreferences,
-            setDietaryPreferences,
-            excludedIngredients,
-            toggleExcludedIngredient
-        }}>
+        <FridgeContext.Provider value={contextValue}>
             {children}
         </FridgeContext.Provider>
     );

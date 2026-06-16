@@ -6,9 +6,13 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-export interface ApiError {
-    message: string
+export class ApiError extends Error {
     status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+    }
 }
 
 /**
@@ -66,13 +70,10 @@ export const getRecipes = async (params?: {
         
         return await response.json();
     } catch (error) {
-        if ((error as ApiError).status) {
+        if (error instanceof ApiError) {
             throw error;
         }
-        throw {
-            message: 'Ağ hatası. Sunucunun çalıştığından emin olun.',
-            status: 0
-        } as ApiError;
+        throw new ApiError('Ağ hatası. Sunucunun çalıştığından emin olun.', 0);
     }
 };
 
@@ -92,13 +93,10 @@ export const getRecipeByTitle = async (title: string) => {
         
         return await response.json();
     } catch (error) {
-        if ((error as ApiError).status) {
+        if (error instanceof ApiError) {
             throw error;
         }
-        throw {
-            message: 'Ağ hatası. Sunucunun çalıştığından emin olun.',
-            status: 0
-        } as ApiError;
+        throw new ApiError('Ağ hatası. Sunucunun çalıştığından emin olun.', 0);
     }
 };
 
@@ -122,13 +120,10 @@ export const getRecommendations = async (ingredients: string[]) => {
         
         return await response.json();
     } catch (error) {
-        if ((error as ApiError).status) {
+        if (error instanceof ApiError) {
             throw error;
         }
-        throw {
-            message: 'Ağ hatası. Sunucunun çalıştığından emin olun.',
-            status: 0
-        } as ApiError;
+        throw new ApiError('Ağ hatası. Sunucunun çalıştığından emin olun.', 0);
     }
 };
 
@@ -181,13 +176,10 @@ export const getRAGRecommendations = async (
         
         return await response.json();
     } catch (error) {
-        if ((error as ApiError).status) {
+        if (error instanceof ApiError) {
             throw error;
         }
-        throw {
-            message: 'Ağ hatası. Sunucunun çalıştığından emin olun.',
-            status: 0
-        } as ApiError;
+        throw new ApiError('Ağ hatası. Sunucunun çalıştığından emin olun.', 0);
     }
 };
 
@@ -213,13 +205,10 @@ export const getSubstitutions = async (
 
         return await response.json();
     } catch (error) {
-        if ((error as ApiError).status) {
+        if (error instanceof ApiError) {
             throw error;
         }
-        throw {
-            message: 'Ağ hatası. Sunucunun çalıştığından emin olun.',
-            status: 0
-        } as ApiError;
+        throw new ApiError('Ağ hatası. Sunucunun çalıştığından emin olun.', 0);
     }
 };
 
@@ -314,7 +303,7 @@ export const recordInteraction = async (data: InteractionCreate): Promise<void> 
     });
     if (!response.ok) {
         if (response.status === 401) {
-            throw { message: 'Oturum süresi doldu. Lütfen tekrar giriş yapın.', status: 401 } as ApiError;
+            throw new ApiError('Oturum süresi doldu. Lütfen tekrar giriş yapın.', 401);
         }
         await handleApiError(response);
     }
@@ -329,7 +318,7 @@ export const logConsumption = async (data: ConsumptionCreate): Promise<void> => 
     });
     if (!response.ok) {
         if (response.status === 401) {
-            throw { message: 'Oturum süresi doldu. Lütfen tekrar giriş yapın.', status: 401 } as ApiError;
+            throw new ApiError('Oturum süresi doldu. Lütfen tekrar giriş yapın.', 401);
         }
         await handleApiError(response);
     }
@@ -387,7 +376,7 @@ export const saveFridgeIngredients = async (ingredients: string[]): Promise<void
     });
     if (!response.ok) {
         if (response.status === 401) {
-            throw { message: 'Oturum süresi doldu. Lütfen tekrar giriş yapın.', status: 401 } as ApiError;
+            throw new ApiError('Oturum süresi doldu. Lütfen tekrar giriş yapın.', 401);
         }
         await handleApiError(response);
     }

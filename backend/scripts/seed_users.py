@@ -33,7 +33,9 @@ from sqlalchemy import text
 
 # ─── Sabit şifre ──────────────────────────────────────────────────────────────
 import os as _os
-PASSWORD = _os.getenv("SEED_USER_PASSWORD", "Test123456")
+PASSWORD = _os.getenv("SEED_USER_PASSWORD")
+if not PASSWORD:
+    raise RuntimeError("SEED_USER_PASSWORD environment variable must be set")
 
 # ─── Kullanıcı profilleri ──────────────────────────────────────────────────────
 # Her kullanıcı için sabit UUID kullanıyoruz (tekrar çalıştırılabilir)
