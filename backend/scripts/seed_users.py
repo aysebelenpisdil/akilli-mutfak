@@ -37,6 +37,38 @@ PASSWORD = _os.getenv("SEED_USER_PASSWORD")
 if not PASSWORD:
     raise RuntimeError("SEED_USER_PASSWORD environment variable must be set")
 
+# ─── Tekrarlayan sabit dizeler ────────────────────────────────────────────────
+# Ingredients
+ING_SOGHAN = "soğan"
+ING_PIRINC = "pirinç"
+ING_KIYMA = "kıyma"
+ING_TEREYAGI = "tereyağı"
+ING_SEKER = "şeker"
+ING_ZEYTINYAGI = "zeytinyağı"
+ING_SARIMSAK = "sarımsak"
+ING_HAVUC = "havuç"
+ING_YOGURT = "yoğurt"
+ING_PATLICAN = "patlıcan"
+ING_KURU_FASULYE = "kuru fasulye"
+ING_SALCA = "salça"
+ING_BALIK_FILETO = "balık fileto"
+
+# Recipe titles
+RCP_ADANA_KEBAP = "Adana Kebap"
+RCP_TAVUK_SIS = "Tavuk Şiş"
+RCP_MERCIMEK_CORBASI = "Mercimek Çorbası"
+RCP_VEGAN_MERCIMEK = "Vegan Mercimek Köftesi (Vegan)"
+RCP_TAVUK_SOTE = "Tavuk Sote"
+RCP_SUTLAC = "Sütlaç"
+RCP_VEGAN_BIBER_DOLMASI = "Vegan Biber Dolması (Vegan)"
+RCP_EZOGELIN_CORBASI = "Ezogelin Çorbası"
+RCP_KURU_FASULYE = "Kuru Fasulye"
+RCP_ZEYTINYAGLI_YAPRAK_SARMA = "Zeytinyağlı Yaprak Sarma"
+RCP_ETLI_NOHUT = "Etli Nohut Yemeği"
+RCP_NOHUTLU_PIRINC = "Nohutlu Pirinç Pilavı"
+RCP_BALIK_BUGULAMA = "Balık Buğulama"
+RCP_MIDYE_DOLMA = "Midye Dolma"
+
 # ─── Kullanıcı profilleri ──────────────────────────────────────────────────────
 # Her kullanıcı için sabit UUID kullanıyoruz (tekrar çalıştırılabilir)
 FAKE_USERS = [
@@ -45,21 +77,21 @@ FAKE_USERS = [
         "email": "ayse.kara@test-buzdolabi.com",
         "display_name": "Ayşe Kara",
         "dietary": {},
-        "fridge": ["kıyma", "soğan", "domates", "biber", "yoğurt", "sarımsak", "pirinç"],
+        "fridge": [ING_KIYMA, ING_SOGHAN, "domates", "biber", ING_YOGURT, ING_SARIMSAK, ING_PIRINC],
         "interactions": [
             # (type, recipe_title, context_ingredients)
-            ("like",  "Adana Kebap",            ["kıyma", "soğan", "biber"]),
-            ("like",  "İçli Köfte",              ["kıyma", "soğan", "bulgur"]),
-            ("like",  "Tavuk Şiş",               ["tavuk", "biber", "soğan"]),
-            ("like",  "Fırında Tavuk Baget",      ["tavuk", "sarımsak", "limon"]),
+            ("like",  RCP_ADANA_KEBAP,            [ING_KIYMA, ING_SOGHAN, "biber"]),
+            ("like",  "İçli Köfte",              [ING_KIYMA, ING_SOGHAN, "bulgur"]),
+            ("like",  RCP_TAVUK_SIS,               ["tavuk", "biber", ING_SOGHAN]),
+            ("like",  "Fırında Tavuk Baget",      ["tavuk", ING_SARIMSAK, "limon"]),
             ("like",  "Etli Güveç",               ["et", "domates", "biber"]),
-            ("cook",  "Adana Kebap",              ["kıyma", "soğan", "biber"]),
-            ("view",  "Ali Nazik Kebap",          ["et", "patlıcan"]),
-            ("skip",  "Mercimek Çorbası",         ["mercimek", "soğan"]),
-            ("skip",  "Vegan Mercimek Köftesi (Vegan)", ["mercimek", "soğan"]),
+            ("cook",  RCP_ADANA_KEBAP,              [ING_KIYMA, ING_SOGHAN, "biber"]),
+            ("view",  "Ali Nazik Kebap",          ["et", ING_PATLICAN]),
+            ("skip",  RCP_MERCIMEK_CORBASI,         ["mercimek", ING_SOGHAN]),
+            ("skip",  RCP_VEGAN_MERCIMEK, ["mercimek", ING_SOGHAN]),
         ],
         "consumption": [
-            ("Adana Kebap",       "dinner", 1.0, 5),
+            (RCP_ADANA_KEBAP,       "dinner", 1.0, 5),
             ("İçli Köfte",        "lunch",  1.5, 4),
             ("Fırında Tavuk Baget", "dinner", 1.0, 4),
         ],
@@ -69,21 +101,21 @@ FAKE_USERS = [
         "email": "mehmet.yilmaz@test-buzdolabi.com",
         "display_name": "Mehmet Yılmaz",
         "dietary": {},
-        "fridge": ["tavuk", "kıyma", "soğan", "sarımsak", "biber", "domates", "yağ"],
+        "fridge": ["tavuk", ING_KIYMA, ING_SOGHAN, ING_SARIMSAK, "biber", "domates", "yağ"],
         "interactions": [
-            ("like",  "Adana Kebap",       ["kıyma", "soğan", "biber"]),
-            ("like",  "Tavuk Şiş",         ["tavuk", "biber", "soğan"]),
-            ("like",  "Tavuk Sote",        ["tavuk", "soğan", "domates"]),
-            ("like",  "İskender Kebap",    ["et", "domates salçası", "yoğurt"]),
-            ("like",  "Ali Nazik Kebap",   ["et", "patlıcan", "yoğurt"]),
-            ("like",  "Tavuk Döner",       ["tavuk", "soğan", "baharatlar"]),
-            ("cook",  "Tavuk Sote",        ["tavuk", "soğan", "domates"]),
-            ("skip",  "Sütlaç",            ["süt", "pirinç", "şeker"]),
-            ("skip",  "Baklava",           ["un", "tereyağı", "şeker"]),
+            ("like",  RCP_ADANA_KEBAP,       [ING_KIYMA, ING_SOGHAN, "biber"]),
+            ("like",  RCP_TAVUK_SIS,         ["tavuk", "biber", ING_SOGHAN]),
+            ("like",  RCP_TAVUK_SOTE,        ["tavuk", ING_SOGHAN, "domates"]),
+            ("like",  "İskender Kebap",    ["et", "domates salçası", ING_YOGURT]),
+            ("like",  "Ali Nazik Kebap",   ["et", ING_PATLICAN, ING_YOGURT]),
+            ("like",  "Tavuk Döner",       ["tavuk", ING_SOGHAN, "baharatlar"]),
+            ("cook",  RCP_TAVUK_SOTE,        ["tavuk", ING_SOGHAN, "domates"]),
+            ("skip",  RCP_SUTLAC,            ["süt", ING_PIRINC, ING_SEKER]),
+            ("skip",  "Baklava",           ["un", ING_TEREYAGI, ING_SEKER]),
         ],
         "consumption": [
-            ("Tavuk Şiş",     "lunch",  1.0, 5),
-            ("Tavuk Sote",    "dinner", 1.0, 4),
+            (RCP_TAVUK_SIS,     "lunch",  1.0, 5),
+            (RCP_TAVUK_SOTE,    "dinner", 1.0, 4),
             ("İskender Kebap", "lunch", 1.0, 5),
         ],
     },
@@ -92,21 +124,21 @@ FAKE_USERS = [
         "email": "zeynep.demir@test-buzdolabi.com",
         "display_name": "Zeynep Demir",
         "dietary": {"vegan": True},
-        "fridge": ["mercimek", "nohut", "ıspanak", "havuç", "zeytinyağı", "limon", "maydanoz"],
+        "fridge": ["mercimek", "nohut", "ıspanak", ING_HAVUC, ING_ZEYTINYAGI, "limon", "maydanoz"],
         "interactions": [
-            ("like",  "Vegan Mercimek Köftesi (Vegan)",          ["mercimek", "soğan", "maydanoz"]),
-            ("like",  "Vegan Yaprak Sarma (Vegan)",              ["zeytinyağı", "pirinç", "limon"]),
-            ("like",  "Vegan Mantar Döner (Vegan)",              ["mantar", "soğan", "baharatlar"]),
-            ("like",  "Vegan Biber Dolması (Vegan)",             ["biber", "pirinç", "soğan"]),
-            ("like",  "Mercimek Çorbası",                         ["mercimek", "soğan", "havuç"]),
-            ("cook",  "Vegan Mercimek Köftesi (Vegan)",          ["mercimek", "soğan", "maydanoz"]),
-            ("view",  "Ezogelin Çorbası",                         ["mercimek", "bulgur"]),
-            ("skip",  "Kuru Fasulye",                             ["fasulye", "et", "soğan"]),
-            ("skip",  "Adana Kebap",                              ["kıyma", "soğan", "biber"]),
+            ("like",  RCP_VEGAN_MERCIMEK,          ["mercimek", ING_SOGHAN, "maydanoz"]),
+            ("like",  "Vegan Yaprak Sarma (Vegan)",              [ING_ZEYTINYAGI, ING_PIRINC, "limon"]),
+            ("like",  "Vegan Mantar Döner (Vegan)",              ["mantar", ING_SOGHAN, "baharatlar"]),
+            ("like",  RCP_VEGAN_BIBER_DOLMASI,             ["biber", ING_PIRINC, ING_SOGHAN]),
+            ("like",  RCP_MERCIMEK_CORBASI,                         ["mercimek", ING_SOGHAN, ING_HAVUC]),
+            ("cook",  RCP_VEGAN_MERCIMEK,          ["mercimek", ING_SOGHAN, "maydanoz"]),
+            ("view",  RCP_EZOGELIN_CORBASI,                         ["mercimek", "bulgur"]),
+            ("skip",  RCP_KURU_FASULYE,                             ["fasulye", "et", ING_SOGHAN]),
+            ("skip",  RCP_ADANA_KEBAP,                              [ING_KIYMA, ING_SOGHAN, "biber"]),
         ],
         "consumption": [
-            ("Vegan Mercimek Köftesi (Vegan)", "lunch",  1.0, 5),
-            ("Mercimek Çorbası",               "dinner", 1.0, 4),
+            (RCP_VEGAN_MERCIMEK, "lunch",  1.0, 5),
+            (RCP_MERCIMEK_CORBASI,               "dinner", 1.0, 4),
             ("Vegan Yaprak Sarma (Vegan)",     "dinner", 1.5, 5),
         ],
     },
@@ -115,21 +147,21 @@ FAKE_USERS = [
         "email": "canan.sahin@test-buzdolabi.com",
         "display_name": "Canan Şahin",
         "dietary": {"vegan": True},
-        "fridge": ["mercimek", "bulgur", "soğan", "domates", "zeytinyağı", "maydanoz", "limon"],
+        "fridge": ["mercimek", "bulgur", ING_SOGHAN, "domates", ING_ZEYTINYAGI, "maydanoz", "limon"],
         "interactions": [
-            ("like",  "Vegan Mercimek Köftesi (Vegan)", ["mercimek", "soğan", "maydanoz"]),
-            ("like",  "Vegan Biber Dolması (Vegan)",    ["biber", "pirinç", "soğan"]),
-            ("like",  "Mercimek Çorbası",                ["mercimek", "soğan", "havuç"]),
-            ("like",  "Ezogelin Çorbası",                ["mercimek", "bulgur", "soğan"]),
-            ("like",  "Zeytinyağlı Yaprak Sarma",        ["zeytinyağı", "pirinç", "limon"]),
-            ("cook",  "Ezogelin Çorbası",                ["mercimek", "bulgur", "soğan"]),
-            ("skip",  "Tavuk Şiş",                       ["tavuk", "biber"]),
+            ("like",  RCP_VEGAN_MERCIMEK, ["mercimek", ING_SOGHAN, "maydanoz"]),
+            ("like",  RCP_VEGAN_BIBER_DOLMASI,    ["biber", ING_PIRINC, ING_SOGHAN]),
+            ("like",  RCP_MERCIMEK_CORBASI,                ["mercimek", ING_SOGHAN, ING_HAVUC]),
+            ("like",  RCP_EZOGELIN_CORBASI,                ["mercimek", "bulgur", ING_SOGHAN]),
+            ("like",  RCP_ZEYTINYAGLI_YAPRAK_SARMA,        [ING_ZEYTINYAGI, ING_PIRINC, "limon"]),
+            ("cook",  RCP_EZOGELIN_CORBASI,                ["mercimek", "bulgur", ING_SOGHAN]),
+            ("skip",  RCP_TAVUK_SIS,                       ["tavuk", "biber"]),
             ("skip",  "Etli Güveç",                      ["et", "domates"]),
         ],
         "consumption": [
-            ("Ezogelin Çorbası",                "lunch",  1.0, 5),
-            ("Vegan Biber Dolması (Vegan)",     "dinner", 1.0, 4),
-            ("Zeytinyağlı Yaprak Sarma",        "lunch",  1.0, 5),
+            (RCP_EZOGELIN_CORBASI,                "lunch",  1.0, 5),
+            (RCP_VEGAN_BIBER_DOLMASI,     "dinner", 1.0, 4),
+            (RCP_ZEYTINYAGLI_YAPRAK_SARMA,        "lunch",  1.0, 5),
         ],
     },
     {
@@ -137,21 +169,21 @@ FAKE_USERS = [
         "email": "emre.arslan@test-buzdolabi.com",
         "display_name": "Emre Arslan",
         "dietary": {},
-        "fridge": ["kuru fasulye", "pirinç", "salça", "soğan", "domates", "et", "sarımsak"],
+        "fridge": [ING_KURU_FASULYE, ING_PIRINC, ING_SALCA, ING_SOGHAN, "domates", "et", ING_SARIMSAK],
         "interactions": [
-            ("like",  "Kuru Fasulye",              ["kuru fasulye", "soğan", "salça"]),
-            ("like",  "Pilav Üstü Kuru Fasulye",   ["kuru fasulye", "pirinç", "soğan"]),
-            ("like",  "Mercimek Çorbası",           ["mercimek", "soğan", "havuç"]),
-            ("like",  "Etli Nohut Yemeği",          ["nohut", "et", "soğan"]),
-            ("like",  "Bulgur Pilavı",              ["bulgur", "soğan", "salça"]),
-            ("like",  "Tereyağlı Pirinç Pilavı",    ["pirinç", "tereyağı", "tuz"]),
-            ("cook",  "Kuru Fasulye",              ["kuru fasulye", "soğan", "salça"]),
-            ("cook",  "Etli Nohut Yemeği",          ["nohut", "et", "soğan"]),
-            ("view",  "Nohutlu Pirinç Pilavı",      ["nohut", "pirinç"]),
+            ("like",  RCP_KURU_FASULYE,              [ING_KURU_FASULYE, ING_SOGHAN, ING_SALCA]),
+            ("like",  "Pilav Üstü Kuru Fasulye",   [ING_KURU_FASULYE, ING_PIRINC, ING_SOGHAN]),
+            ("like",  RCP_MERCIMEK_CORBASI,           ["mercimek", ING_SOGHAN, ING_HAVUC]),
+            ("like",  RCP_ETLI_NOHUT,          ["nohut", "et", ING_SOGHAN]),
+            ("like",  "Bulgur Pilavı",              ["bulgur", ING_SOGHAN, ING_SALCA]),
+            ("like",  "Tereyağlı Pirinç Pilavı",    [ING_PIRINC, ING_TEREYAGI, "tuz"]),
+            ("cook",  RCP_KURU_FASULYE,              [ING_KURU_FASULYE, ING_SOGHAN, ING_SALCA]),
+            ("cook",  RCP_ETLI_NOHUT,          ["nohut", "et", ING_SOGHAN]),
+            ("view",  RCP_NOHUTLU_PIRINC,      ["nohut", ING_PIRINC]),
         ],
         "consumption": [
-            ("Kuru Fasulye",            "lunch",  1.0, 5),
-            ("Etli Nohut Yemeği",       "dinner", 1.0, 5),
+            (RCP_KURU_FASULYE,            "lunch",  1.0, 5),
+            (RCP_ETLI_NOHUT,       "dinner", 1.0, 5),
             ("Tereyağlı Pirinç Pilavı", "dinner", 1.0, 4),
         ],
     },
@@ -160,22 +192,22 @@ FAKE_USERS = [
         "email": "fatma.celik@test-buzdolabi.com",
         "display_name": "Fatma Çelik",
         "dietary": {},
-        "fridge": ["kuru fasulye", "nohut", "pirinç", "domates", "soğan", "salça", "et"],
+        "fridge": [ING_KURU_FASULYE, "nohut", ING_PIRINC, "domates", ING_SOGHAN, ING_SALCA, "et"],
         "interactions": [
-            ("like",  "Kuru Fasulye",             ["kuru fasulye", "soğan", "salça"]),
-            ("like",  "Etli Nohut Yemeği",         ["nohut", "et", "soğan"]),
-            ("like",  "Ezogelin Çorbası",           ["mercimek", "bulgur", "soğan"]),
-            ("like",  "Zeytinyağlı Yaprak Sarma",   ["zeytinyağı", "pirinç", "limon"]),
-            ("like",  "Nohutlu Pirinç Pilavı",      ["nohut", "pirinç", "soğan"]),
-            ("like",  "Tavuklu Pilav",              ["tavuk", "pirinç", "baharatlar"]),
-            ("cook",  "Etli Nohut Yemeği",          ["nohut", "et", "soğan"]),
-            ("cook",  "Kuru Fasulye",               ["kuru fasulye", "soğan", "salça"]),
-            ("skip",  "Baklava",                    ["un", "şeker", "tereyağı"]),
+            ("like",  RCP_KURU_FASULYE,             [ING_KURU_FASULYE, ING_SOGHAN, ING_SALCA]),
+            ("like",  RCP_ETLI_NOHUT,         ["nohut", "et", ING_SOGHAN]),
+            ("like",  RCP_EZOGELIN_CORBASI,           ["mercimek", "bulgur", ING_SOGHAN]),
+            ("like",  RCP_ZEYTINYAGLI_YAPRAK_SARMA,   [ING_ZEYTINYAGI, ING_PIRINC, "limon"]),
+            ("like",  RCP_NOHUTLU_PIRINC,      ["nohut", ING_PIRINC, ING_SOGHAN]),
+            ("like",  "Tavuklu Pilav",              ["tavuk", ING_PIRINC, "baharatlar"]),
+            ("cook",  RCP_ETLI_NOHUT,          ["nohut", "et", ING_SOGHAN]),
+            ("cook",  RCP_KURU_FASULYE,               [ING_KURU_FASULYE, ING_SOGHAN, ING_SALCA]),
+            ("skip",  "Baklava",                    ["un", ING_SEKER, ING_TEREYAGI]),
         ],
         "consumption": [
-            ("Etli Nohut Yemeği",      "dinner", 1.0, 5),
-            ("Kuru Fasulye",           "lunch",  1.0, 5),
-            ("Nohutlu Pirinç Pilavı",  "dinner", 1.5, 4),
+            (RCP_ETLI_NOHUT,      "dinner", 1.0, 5),
+            (RCP_KURU_FASULYE,           "lunch",  1.0, 5),
+            (RCP_NOHUTLU_PIRINC,  "dinner", 1.5, 4),
         ],
     },
     {
@@ -183,20 +215,20 @@ FAKE_USERS = [
         "email": "burak.ozdemir@test-buzdolabi.com",
         "display_name": "Burak Özdemir",
         "dietary": {},
-        "fridge": ["balık fileto", "limon", "zeytinyağı", "maydanoz", "sarımsak", "tuz", "karabiber"],
+        "fridge": [ING_BALIK_FILETO, "limon", ING_ZEYTINYAGI, "maydanoz", ING_SARIMSAK, "tuz", "karabiber"],
         "interactions": [
-            ("like",  "Balık Buğulama",   ["balık fileto", "limon", "zeytinyağı"]),
-            ("like",  "Balık Köfte",      ["balık", "soğan", "maydanoz"]),
-            ("like",  "Midye Dolma",      ["midye", "pirinç", "baharatlar"]),
-            ("like",  "Patlıcan Salatası",["patlıcan", "zeytinyağı", "limon"]),
-            ("like",  "Çoban Salatası",   ["domates", "salatalık", "soğan"]),
-            ("cook",  "Balık Buğulama",   ["balık fileto", "limon", "zeytinyağı"]),
-            ("view",  "Midye Dolma",      ["midye", "pirinç"]),
-            ("skip",  "Baklava",          ["un", "şeker", "tereyağı"]),
+            ("like",  RCP_BALIK_BUGULAMA,   [ING_BALIK_FILETO, "limon", ING_ZEYTINYAGI]),
+            ("like",  "Balık Köfte",      ["balık", ING_SOGHAN, "maydanoz"]),
+            ("like",  RCP_MIDYE_DOLMA,      ["midye", ING_PIRINC, "baharatlar"]),
+            ("like",  "Patlıcan Salatası",[ING_PATLICAN, ING_ZEYTINYAGI, "limon"]),
+            ("like",  "Çoban Salatası",   ["domates", "salatalık", ING_SOGHAN]),
+            ("cook",  RCP_BALIK_BUGULAMA,   [ING_BALIK_FILETO, "limon", ING_ZEYTINYAGI]),
+            ("view",  RCP_MIDYE_DOLMA,      ["midye", ING_PIRINC]),
+            ("skip",  "Baklava",          ["un", ING_SEKER, ING_TEREYAGI]),
         ],
         "consumption": [
-            ("Balık Buğulama",  "dinner", 1.0, 5),
-            ("Midye Dolma",     "lunch",  1.0, 4),
+            (RCP_BALIK_BUGULAMA,  "dinner", 1.0, 5),
+            (RCP_MIDYE_DOLMA,     "lunch",  1.0, 4),
             ("Çoban Salatası",  "lunch",  1.0, 4),
         ],
     },
@@ -205,21 +237,21 @@ FAKE_USERS = [
         "email": "selin.aydin@test-buzdolabi.com",
         "display_name": "Selin Aydın",
         "dietary": {},
-        "fridge": ["un", "yumurta", "tereyağı", "süt", "şeker", "tuz", "peynir"],
+        "fridge": ["un", "yumurta", ING_TEREYAGI, "süt", ING_SEKER, "tuz", "peynir"],
         "interactions": [
-            ("like",  "Baklava",            ["un", "tereyağı", "şeker"]),
-            ("like",  "Sütlaç",             ["süt", "pirinç", "şeker"]),
-            ("like",  "Fırında Sütlaç",     ["süt", "pirinç", "şeker"]),
-            ("like",  "Peynirli Gözleme",   ["un", "peynir", "tereyağı"]),
+            ("like",  "Baklava",            ["un", ING_TEREYAGI, ING_SEKER]),
+            ("like",  RCP_SUTLAC,             ["süt", ING_PIRINC, ING_SEKER]),
+            ("like",  "Fırında Sütlaç",     ["süt", ING_PIRINC, ING_SEKER]),
+            ("like",  "Peynirli Gözleme",   ["un", "peynir", ING_TEREYAGI]),
             ("like",  "Peynirli Poğaça",    ["un", "peynir", "yumurta"]),
             ("like",  "Ispanaklı Börek",    ["un", "ıspanak", "peynir"]),
-            ("cook",  "Baklava",            ["un", "tereyağı", "şeker"]),
-            ("cook",  "Sütlaç",             ["süt", "pirinç", "şeker"]),
-            ("skip",  "Adana Kebap",        ["kıyma", "soğan"]),
+            ("cook",  "Baklava",            ["un", ING_TEREYAGI, ING_SEKER]),
+            ("cook",  RCP_SUTLAC,             ["süt", ING_PIRINC, ING_SEKER]),
+            ("skip",  RCP_ADANA_KEBAP,        [ING_KIYMA, ING_SOGHAN]),
         ],
         "consumption": [
             ("Baklava",           "snack",  1.0, 5),
-            ("Sütlaç",            "snack",  1.5, 5),
+            (RCP_SUTLAC,            "snack",  1.5, 5),
             ("Peynirli Gözleme",  "breakfast", 1.0, 4),
         ],
     },

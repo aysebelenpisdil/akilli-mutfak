@@ -19,6 +19,8 @@ import logging
 from app.config import settings
 from app.models.recipe import Recipe
 
+_FALLBACK_MSG = "Vector search will not be available. Using fallback search methods."
+
 # Setup logger
 logger = logging.getLogger(__name__)
 
@@ -162,14 +164,14 @@ class FAISSService:
         try:
             if not self.index_path.exists():
                 logger.warning(f"FAISS index file not found: {self.index_path}")
-                logger.info("Vector search will not be available. Using fallback search methods.")
+                logger.info(_FALLBACK_MSG)
                 return False
             
             # Check file size (basic validation)
             file_size = self.index_path.stat().st_size
             if file_size == 0:
                 logger.error(f"FAISS index file is empty: {self.index_path}")
-                logger.warning("Vector search will not be available. Using fallback search methods.")
+                logger.warning(_FALLBACK_MSG)
                 return False
             
             logger.debug(f"Loading FAISS index from {self.index_path} (size: {file_size} bytes)")
@@ -181,7 +183,7 @@ class FAISSService:
                 logger.exception(
                     f"Failed to read FAISS index file. The file may be corrupted: {e}"
                 )
-                logger.warning("Vector search will not be available. Using fallback search methods.")
+                logger.warning(_FALLBACK_MSG)
                 return False
             
             # Validate index
@@ -194,7 +196,7 @@ class FAISSService:
                     f"Index dimension mismatch: expected {self.dimension}, "
                     f"got {self.index.d}. Index may be incompatible."
                 )
-                logger.warning("Vector search will not be available. Using fallback search methods.")
+                logger.warning(_FALLBACK_MSG)
                 return False
             
             logger.info(f"FAISS index loaded successfully from: {self.index_path}")
@@ -233,15 +235,15 @@ class FAISSService:
             
         except FileNotFoundError:
             logger.warning(f"FAISS index file not found: {self.index_path}")
-            logger.info("Vector search will not be available. Using fallback search methods.")
+            logger.info(_FALLBACK_MSG)
             return False
         except PermissionError as e:
             logger.exception(f"Permission denied accessing FAISS index file: {e}")
-            logger.warning("Vector search will not be available. Using fallback search methods.")
+            logger.warning(_FALLBACK_MSG)
             return False
         except Exception as e:
             logger.exception(f"Unexpected error loading FAISS index: {e}")
-            logger.warning("Vector search will not be available. Using fallback search methods.")
+            logger.warning(_FALLBACK_MSG)
             return False
     
     def is_loaded(self) -> bool:

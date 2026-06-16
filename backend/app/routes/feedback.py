@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import logging
 from app.models.feedback import (
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
 @router.post("/interaction", response_model=InteractionResponse)
-async def record_interaction(body: InteractionCreate, user: dict = Depends(get_current_user)):
+async def record_interaction(body: InteractionCreate, user: Annotated[dict, Depends(get_current_user)]):
     row_id = await database_service.record_interaction(
         user_id=user["id"],
         recipe_title=body.recipe_title,
@@ -32,7 +33,7 @@ async def record_interaction(body: InteractionCreate, user: dict = Depends(get_c
 
 
 @router.post("/consumption", response_model=ConsumptionResponse)
-async def log_consumption(body: ConsumptionCreate, user: dict = Depends(get_current_user)):
+async def log_consumption(body: ConsumptionCreate, user: Annotated[dict, Depends(get_current_user)]):
     row_id = await database_service.log_consumption(
         user_id=user["id"],
         recipe_title=body.recipe_title,
@@ -54,7 +55,7 @@ async def log_consumption(body: ConsumptionCreate, user: dict = Depends(get_curr
 
 
 @router.get("/features", response_model=UserFeatures)
-async def get_features(user: dict = Depends(get_current_user)):
+async def get_features(user: Annotated[dict, Depends(get_current_user)]):
     features = await database_service.get_user_features(user["id"])
     return UserFeatures(**features)
 
@@ -63,7 +64,7 @@ async def get_features(user: dict = Depends(get_current_user)):
 async def get_history(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    user: dict = Depends(get_current_user),
+    user: Annotated[dict, Depends(get_current_user)],
 ):
     interactions = await database_service.get_interaction_history(user["id"], limit, offset)
     return {"interactions": interactions, "count": len(interactions)}
@@ -73,14 +74,14 @@ async def get_history(
 async def get_consumption_history(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    user: dict = Depends(get_current_user),
+    user: Annotated[dict, Depends(get_current_user)],
 ):
     logs = await database_service.get_consumption_history(user["id"], limit, offset)
     return {"consumption_logs": logs, "count": len(logs)}
 
 
 @router.get("/weekly-repeats")
-async def get_weekly_repeats(user: dict = Depends(get_current_user)):
+async def get_weekly_repeats(user: Annotated[dict, Depends(get_current_user)]):
     repeats = await database_service.get_weekly_repeats(user["id"])
     return {"weekly_repeats": repeats, "count": len(repeats)}
 
@@ -88,7 +89,7 @@ async def get_weekly_repeats(user: dict = Depends(get_current_user)):
 @router.delete("/interaction", status_code=200)
 async def delete_interaction_by_recipe(
     body: InteractionDelete,
-    user: dict = Depends(get_current_user),
+    user: Annotated[dict, Depends(get_current_user)],
 ):
     deleted = await database_service.delete_interaction_by_recipe(
         user_id=user["id"],
@@ -102,7 +103,7 @@ async def delete_interaction_by_recipe(
 @router.delete("/interaction/{interaction_id}", status_code=204)
 async def delete_interaction(
     interaction_id: int,
-    user: dict = Depends(get_current_user),
+    user: Annotated[dict, Depends(get_current_user)],
 ):
     deleted = await database_service.delete_interaction(user["id"], interaction_id)
     if not deleted:
@@ -110,14 +111,14 @@ async def delete_interaction(
 
 
 @router.get("/recipe-status/{recipe_title}")
-async def get_recipe_status(recipe_title: str, user: dict = Depends(get_current_user)):
+async def get_recipe_status(recipe_title: str, user: Annotated[dict, Depends(get_current_user)]):
     status = await database_service.get_recipe_interaction_status(user["id"], recipe_title)
     return status
 
 
 @router.post("/survey", response_model=SurveyResponse)
 @limiter.limit("5/minute")
-async def submit_survey(request: Request, body: SurveyRequest, user: dict = Depends(get_current_user)):
+async def submit_survey(request: Request, body: SurveyRequest, user: Annotated[dict, Depends(get_current_user)]):
     row_id, created_at = await database_service.record_survey_response(
         user_id=user["id"],
         rating=body.rating,
@@ -131,6 +132,6 @@ async def submit_survey(request: Request, body: SurveyRequest, user: dict = Depe
 
 
 @router.get("/survey/stats", response_model=SurveyStats)
-async def get_survey_stats(user: dict = Depends(get_current_user)):
+async def get_survey_stats(user: Annotated[dict, Depends(get_current_user)]):
     stats = await database_service.get_survey_stats()
     return SurveyStats(**stats)

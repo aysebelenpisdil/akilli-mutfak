@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import APIRouter, Response, Depends, HTTPException, Request
 import logging
 import httpx
@@ -131,7 +132,7 @@ async def verify_magic_link(body: MagicLinkVerifyRequest, response: Response):
 
 
 @router.get("/me", response_model=SessionInfo)
-async def get_me(user: dict = Depends(get_current_user)):
+async def get_me(user: Annotated[dict, Depends(get_current_user)]):
     return SessionInfo(
         user=UserResponse(
             id=user["id"],
@@ -144,7 +145,7 @@ async def get_me(user: dict = Depends(get_current_user)):
 
 
 @router.post("/logout")
-async def logout(response: Response, user: dict = Depends(get_current_user)):
+async def logout(response: Response, user: Annotated[dict, Depends(get_current_user)]):
     response.delete_cookie("session_id")
     await auth_service.logout(user.get("session_id", ""))
     logger.info(f"User {user['email']} logged out")

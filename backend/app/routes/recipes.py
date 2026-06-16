@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, Request
-from typing import List, Optional
+from typing import Annotated, List, Optional
 import time
 import logging
 from app.middleware.rate_limiter import limiter
@@ -230,7 +230,7 @@ async def search_recipes(request: Request, body: RecipeSearchRequest):
 async def rag_recommend(
     request: Request,
     body: RAGRecommendRequest,
-    user: Optional[dict] = Depends(get_optional_user),
+    user: Annotated[Optional[dict], Depends(get_optional_user)],
 ):
     """
     RAG-based recipe recommendations with personalization.
