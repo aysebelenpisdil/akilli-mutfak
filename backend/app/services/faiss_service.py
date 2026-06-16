@@ -109,7 +109,7 @@ class FAISSService:
             return True
             
         except Exception as e:
-            logger.error(f"Error building FAISS index: {e}", exc_info=True)
+            logger.exception(f"Error building FAISS index: {e}")
             return False
     
     def _save_index(self):
@@ -146,7 +146,7 @@ class FAISSService:
             logger.info(f"Metadata saved to: {self.metadata_path}")
             
         except Exception as e:
-            logger.error(f"Error saving FAISS index: {e}", exc_info=True)
+            logger.exception(f"Error saving FAISS index: {e}")
             raise
     
     def load_index(self) -> bool:
@@ -178,9 +178,8 @@ class FAISSService:
             try:
                 self.index = faiss.read_index(str(self.index_path))
             except Exception as e:
-                logger.error(
-                    f"Failed to read FAISS index file. The file may be corrupted: {e}",
-                    exc_info=True
+                logger.exception(
+                    f"Failed to read FAISS index file. The file may be corrupted: {e}"
                 )
                 logger.warning("Vector search will not be available. Using fallback search methods.")
                 return False
@@ -237,11 +236,11 @@ class FAISSService:
             logger.info("Vector search will not be available. Using fallback search methods.")
             return False
         except PermissionError as e:
-            logger.error(f"Permission denied accessing FAISS index file: {e}")
+            logger.exception(f"Permission denied accessing FAISS index file: {e}")
             logger.warning("Vector search will not be available. Using fallback search methods.")
             return False
         except Exception as e:
-            logger.error(f"Unexpected error loading FAISS index: {e}", exc_info=True)
+            logger.exception(f"Unexpected error loading FAISS index: {e}")
             logger.warning("Vector search will not be available. Using fallback search methods.")
             return False
     
@@ -329,7 +328,7 @@ class FAISSService:
             return distances[0], indices[0]
             
         except Exception as e:
-            logger.error(f"Error during FAISS search: {e}", exc_info=True)
+            logger.exception(f"Error during FAISS search: {e}")
             raise RuntimeError(f"FAISS search failed: {e}") from e
     
     def search_by_text(
@@ -372,7 +371,7 @@ class FAISSService:
             return self.search(query_embedding, k)
             
         except Exception as e:
-            logger.error(f"Error in text search: {e}", exc_info=True)
+            logger.exception(f"Error in text search: {e}")
             raise RuntimeError(f"Text search failed: {e}") from e
     
     def search_by_ingredients(
@@ -409,7 +408,7 @@ class FAISSService:
             return self.search_by_text(query_text, k, embedding_service)
             
         except Exception as e:
-            logger.error(f"Error in ingredient search: {e}", exc_info=True)
+            logger.exception(f"Error in ingredient search: {e}")
             raise RuntimeError(f"Ingredient search failed: {e}") from e
     
     def get_index_info(self) -> dict:

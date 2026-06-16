@@ -53,7 +53,7 @@ class LLMService:
                 self._model_loaded = True
                 logger.info(f"Gemini client initialized for model: {self.model_name}")
             except Exception as e:
-                logger.error(f"Error initializing Gemini API: {e}", exc_info=True)
+                logger.exception(f"Error initializing Gemini API: {e}")
                 logger.warning("LLM explanations will be disabled")
                 self.enabled = False
                 self._model_loaded = False
@@ -232,10 +232,10 @@ Bu tariflerin neden önerildiğini kısaca özetle. Düz metin yaz, markdown kul
             if e.code == 429:
                 logger.warning("Gemini API kota aşıldı, açıklama atlanıyor")
             else:
-                logger.error(f"Gemini API client error: {e}", exc_info=True)
+                logger.exception(f"Gemini API client error: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error generating explanation: {e}", exc_info=True)
+            logger.exception(f"Error generating explanation: {e}")
             logger.warning("Returning None for explanation")
             return None
 
@@ -332,10 +332,10 @@ Yanıtın SADECE bu JSON formatında olsun, tırnak ve virgüllere dikkat et."""
             if e.code == 429:
                 logger.warning("Gemini API kota aşıldı, ikame önerileri boş döndürülüyor")
             else:
-                logger.error(f"Gemini API client error: {e}", exc_info=True)
+                logger.exception(f"Gemini API client error: {e}")
             return {"substitutions": {}, "explanation": None}
         except Exception as e:
-            logger.error(f"Error generating substitutions: {e}", exc_info=True)
+            logger.exception(f"Error generating substitutions: {e}")
             return {"substitutions": {}, "explanation": None}
 
     def get_model_info(self) -> dict:

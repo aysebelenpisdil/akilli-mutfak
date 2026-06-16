@@ -36,7 +36,7 @@ class RerankerService:
                 self._model_loaded = True
                 logger.info(f"Reranker model loaded successfully: {self.model_name}")
             except Exception as e:
-                logger.error(f"Error loading reranker model: {e}", exc_info=True)
+                logger.exception(f"Error loading reranker model: {e}")
                 logger.warning("Reranker will be disabled, using FAISS scores only")
                 self.enabled = False
                 self._model_loaded = False
@@ -111,7 +111,7 @@ class RerankerService:
             try:
                 self._load_model()
             except Exception as e:
-                logger.error(f"Failed to load reranker model: {e}")
+                logger.exception(f"Failed to load reranker model: {e}")
                 # Fallback: return recipes with dummy scores
                 return [(recipe, 1.0) for recipe in recipes[:top_k]]
         
@@ -150,7 +150,7 @@ class RerankerService:
             return top_results
             
         except Exception as e:
-            logger.error(f"Error during reranking: {e}", exc_info=True)
+            logger.exception(f"Error during reranking: {e}")
             logger.warning("Falling back to original order with dummy scores")
             # Fallback: return recipes with dummy scores
             return [(recipe, 1.0) for recipe in recipes[:top_k]]

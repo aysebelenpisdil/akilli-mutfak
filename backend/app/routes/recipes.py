@@ -125,7 +125,7 @@ async def recommend_recipes(request: Request, body: RecipeRecommendRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error generating recommendations: {e}", exc_info=True)
+        logger.exception(f"Error generating recommendations: {e}")
         raise HTTPException(status_code=500, detail=f"Öneriler oluşturulamadı: {str(e)}")
 
 
@@ -221,7 +221,7 @@ async def search_recipes(request: Request, body: RecipeSearchRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in text search: {e}", exc_info=True)
+        logger.exception(f"Error in text search: {e}")
         raise HTTPException(status_code=500, detail=f"Tarif araması başarısız: {str(e)}")
 
 
@@ -317,7 +317,7 @@ async def rag_recommend(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in RAG recommendation: {e}", exc_info=True)
+        logger.exception(f"Error in RAG recommendation: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"RAG önerileri oluşturulamadı: {str(e)}"
@@ -365,7 +365,7 @@ async def get_substitutions(request: Request, body: SubstitutionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error generating substitutions: {e}", exc_info=True)
+        logger.exception(f"Error generating substitutions: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"İkame önerileri oluşturulamadı: {str(e)}"

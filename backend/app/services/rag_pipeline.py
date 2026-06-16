@@ -142,7 +142,7 @@ class RAGPipeline:
             return [Recipe(**r.dict()) for r in results], False
 
         except Exception as e:
-            logger.error(f"Error in retrieval step: {e}", exc_info=True)
+            logger.exception(f"Error in retrieval step: {e}")
             logger.warning("Falling back to string matching")
             results = self.recipe_service.find_suitable_recipes(
                 user_ingredients=user_ingredients, use_vector_search=False, top_k=top_k
@@ -168,7 +168,7 @@ class RAGPipeline:
             return reranked_results
 
         except Exception as e:
-            logger.error(f"Error in reranking step: {e}", exc_info=True)
+            logger.exception(f"Error in reranking step: {e}")
             logger.warning("Falling back to original order")
             return [(recipe, 1.0) for recipe in recipes[:top_k]]
 
@@ -232,7 +232,7 @@ class RAGPipeline:
             return explanation
 
         except Exception as e:
-            logger.error(f"Error in generation step: {e}", exc_info=True)
+            logger.exception(f"Error in generation step: {e}")
             return None
 
     def process(

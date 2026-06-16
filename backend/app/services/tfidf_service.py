@@ -80,7 +80,7 @@ class TFIDFService:
             )
             return True
         except Exception as e:
-            logger.error(f"TF-IDF index yüklenemedi: {e}", exc_info=True)
+            logger.exception(f"TF-IDF index yüklenemedi: {e}")
             self._vectorizer = None
             self._matrix = None
             return False

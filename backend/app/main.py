@@ -79,7 +79,7 @@ async def startup_event():
         await database_service.init_db()
         logger.info("✅ PostgreSQL (Supabase) database initialized")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}", exc_info=True)
+        logger.exception(f"❌ Database initialization failed: {e}")
 
     # Step 1: Load FAISS index (Retriever)
     try:
@@ -98,7 +98,7 @@ async def startup_event():
             logger.warning("   Application will continue with string matching fallback")
             
     except Exception as e:
-        logger.error(f"❌ Error loading FAISS index: {e}", exc_info=True)
+        logger.exception(f"❌ Error loading FAISS index: {e}")
         logger.warning("   Continuing with string matching fallback")
     
     # Step 1.5: Load TF-IDF inverted index (hibrit retrieval için)
@@ -114,7 +114,7 @@ async def startup_event():
             logger.warning("⚠️  TF-IDF index bulunamadı — hibrit retrieval devre dışı")
             logger.warning("   scripts/build_tfidf_index.py ile index oluşturun")
     except Exception as e:
-        logger.error(f"❌ TF-IDF index yüklenemedi: {e}", exc_info=True)
+        logger.exception(f"❌ TF-IDF index yüklenemedi: {e}")
 
     # Step 1.6: Pre-load embedding model (used for FAISS query encoding)
     try:

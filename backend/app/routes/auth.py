@@ -53,7 +53,7 @@ async def create_supabase_session(request: Request, body: SupabaseSessionRequest
                 },
             )
     except Exception as exc:
-        logger.error(f"Supabase token validation failed: {exc}")
+        logger.exception(f"Supabase token validation failed: {exc}")
         raise HTTPException(status_code=503, detail="Supabase bağlantısı kurulamadı.")
 
     if resp.status_code != 200:
@@ -71,7 +71,7 @@ async def create_supabase_session(request: Request, body: SupabaseSessionRequest
         _set_session_cookie(response, session_id)
         session_data = await auth_service.validate_session(session_id)
     except Exception as exc:
-        logger.error(f"DB error in supabase-session for {email}: {exc}", exc_info=True)
+        logger.exception(f"DB error in supabase-session for {email}: {exc}")
         raise HTTPException(status_code=500, detail="Veritabanı hatası. Lütfen tekrar deneyin.")
 
     logger.info(f"Supabase session created for {email}")

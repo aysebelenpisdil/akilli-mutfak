@@ -36,7 +36,7 @@ class EmbeddingService:
                 self._model_loaded = True
                 logger.info(f"Embedding model loaded successfully (dimension: {self.dimension})")
             except Exception as e:
-                logger.error(f"Error loading embedding model: {e}", exc_info=True)
+                logger.exception(f"Error loading embedding model: {e}")
                 raise RuntimeError(f"Failed to load embedding model '{self.model_name}': {e}") from e
     
     def _prepare_recipe_text(self, recipe: Recipe) -> str:

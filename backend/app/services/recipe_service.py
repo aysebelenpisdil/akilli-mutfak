@@ -66,7 +66,7 @@ class RecipeService:
             logger.warning(f"Error loading recipes: {e}, using empty list")
             self.recipes = []
         except Exception as e:
-            logger.error(f"Error loading recipes: {e}", exc_info=True)
+            logger.exception(f"Error loading recipes: {e}")
             self.recipes = []
     
     def _ensure_loaded(self):
