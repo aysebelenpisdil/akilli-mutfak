@@ -12,6 +12,29 @@ export interface CalorieRange {
     max?: number;
 }
 
+function _isCalorieOutOfRange(calories: number, range: CalorieRange): boolean {
+    if (range.min !== undefined && calories < range.min) return true;
+    if (range.max !== undefined && calories > range.max) return true;
+    return false;
+}
+
+function _getCalorieLabel(range: CalorieRange): string | null {
+    if (range.max !== undefined && range.max <= 400) return 'Düşük Kalorili';
+    if (range.min !== undefined && range.min >= 400 && range.max !== undefined && range.max <= 700) return 'Orta Kalorili';
+    if (range.min !== undefined && range.min > 700) return 'Yüksek Kalorili';
+    return null;
+}
+
+function _buildExcludedLabels(excludedIngredients: string[]): string[] {
+    const labels = excludedIngredients
+        .slice(0, 3)
+        .map(ing => `${ing.charAt(0).toUpperCase()}${ing.slice(1)} hariç`);
+    if (excludedIngredients.length > 3) {
+        labels.push(`+${excludedIngredients.length - 3} daha`);
+    }
+    return labels;
+}
+
 /**
  * Filter recipes based on dietary preferences, excluded ingredients, and calorie range
  */
@@ -26,25 +49,16 @@ export function filterRecipes(
     return recipes.filter(recipe => {
         const ingredientsString = recipe.Cleaned_Ingredients || recipe.Ingredients;
 
-        if (excludedIngredients.length > 0) {
-            if (matchesExcludedIngredient(ingredientsString, excludedIngredients)) {
-                return false;
-            }
+        if (excludedIngredients.length > 0 && matchesExcludedIngredient(ingredientsString, excludedIngredients)) {
+            return false;
         }
 
-        if (forbiddenIngredients.length > 0) {
-            if (matchesExcludedIngredient(ingredientsString, forbiddenIngredients)) {
-                return false;
-            }
+        if (forbiddenIngredients.length > 0 && matchesExcludedIngredient(ingredientsString, forbiddenIngredients)) {
+            return false;
         }
 
-        if (calorieRange && recipe.estimatedCalories != null) {
-            if (calorieRange.min !== undefined && recipe.estimatedCalories < calorieRange.min) {
-                return false;
-            }
-            if (calorieRange.max !== undefined && recipe.estimatedCalories > calorieRange.max) {
-                return false;
-            }
+        if (calorieRange && recipe.estimatedCalories != null && _isCalorieOutOfRange(recipe.estimatedCalories, calorieRange)) {
+            return false;
         }
 
         return true;
@@ -68,23 +82,12 @@ export function getActiveFilterLabels(
     if (dietaryPreferences.nutAllergy) labels.push('Kuruyemiş İçermez');
 
     if (calorieRange) {
-        if (calorieRange.max !== undefined && calorieRange.max <= 400) {
-            labels.push('Düşük Kalorili');
-        } else if (calorieRange.min !== undefined && calorieRange.min >= 400 && calorieRange.max !== undefined && calorieRange.max <= 700) {
-            labels.push('Orta Kalorili');
-        } else if (calorieRange.min !== undefined && calorieRange.min > 700) {
-            labels.push('Yüksek Kalorili');
-        }
+        const calorieLabel = _getCalorieLabel(calorieRange);
+        if (calorieLabel) labels.push(calorieLabel);
     }
 
     if (excludedIngredients.length > 0) {
-        const excludedLabels = excludedIngredients.slice(0, 3).map(ing => {
-            return ing.charAt(0).toUpperCase() + ing.slice(1);
-        });
-        if (excludedIngredients.length > 3) {
-            excludedLabels.push(`+${excludedIngredients.length - 3} daha`);
-        }
-        labels.push(...excludedLabels.map(label => `${label} hariç`));
+        labels.push(..._buildExcludedLabels(excludedIngredients));
     }
 
     return labels;

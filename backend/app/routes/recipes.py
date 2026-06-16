@@ -30,6 +30,69 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 
+def _build_recipe_with_match(recipe) -> RecipeWithMatch:
+    return RecipeWithMatch(**recipe.dict(), matchingCount=0, matchingIngredients=[])
+
+
+def _try_vector_search(query: str, top_k: int) -> Optional[list]:
+    """Attempt FAISS vector search; return list of RecipeWithMatch or None on failure."""
+    if not faiss_service.is_loaded():
+        return None
+    try:
+        distances, indices = faiss_service.search_by_text(
+            text=query,
+            k=min(top_k, recipe_service.get_total_count()),
+            embedding_service=embedding_service,
+        )
+        all_recipes = recipe_service.get_all_recipes(limit=recipe_service.get_total_count())
+        return [
+            _build_recipe_with_match(all_recipes[idx])
+            for idx, _ in zip(indices, distances)
+            if idx < len(all_recipes)
+        ]
+    except Exception as e:
+        logger.warning(f"Vector search failed: {e}, falling back to string matching")
+        return None
+
+
+def _string_match_search(query: str, top_k: int) -> list:
+    """Fallback: filter recipes by title substring match."""
+    all_recipes = recipe_service.get_all_recipes(limit=recipe_service.get_total_count())
+    query_lower = query.lower()
+    results = []
+    for recipe in all_recipes:
+        if query_lower in recipe.Title.lower():
+            results.append(_build_recipe_with_match(recipe))
+            if len(results) >= top_k:
+                break
+    return results
+
+
+async def _fetch_user_rag_context(user: dict):
+    """Fetch personalization data for a logged-in user. Returns (user_id, history, cf_scores)."""
+    user_id = user["id"]
+    user_history = None
+    cf_scores = None
+
+    try:
+        user_history = await database_service.get_user_interaction_map(user_id)
+        logger.info(f"[{user['email']}] RAG personalized: {len(user_history)} known recipes")
+    except Exception as exc:
+        logger.warning(f"Could not fetch user history for personalization: {exc}")
+
+    try:
+        all_titles = [r.Title for r in recipe_service.get_all_recipes(
+            limit=recipe_service.get_total_count()
+        )]
+        cf_scores = await cf_service.get_cf_scores(user_id, all_titles)
+        if cf_scores:
+            logger.info(f"[{user['email']}] CF: {len(cf_scores)} tarife skor eklendi")
+    except Exception as exc:
+        logger.warning(f"CF skorları hesaplanamadı: {exc}")
+
+    return user_id, user_history, cf_scores
+
+
 @router.get("/", response_model=dict, responses={500: {"description": "Internal Server Error"}})
 async def get_recipes(
     ingredients: Optional[str] = Query(None, description="Comma-separated list of ingredients"),
@@ -146,74 +209,27 @@ async def search_recipes(request: Request, body: RecipeSearchRequest):
 
         top_k = body.top_k if body.top_k is not None else 20
 
-        # Check if vector search is available
-        if faiss_service.is_loaded():
-            try:
-                logger.info(f"Text search request: '{body.query}', method: vector")
+        vector_results = _try_vector_search(body.query, top_k)
+        if vector_results is not None:
+            process_time = time.time() - start_time
+            logger.info(f"Text search (vector) completed in {process_time:.3f}s: {len(vector_results)} results")
+            return RecipeSearchResponse(
+                recipes=vector_results,
+                count=len(vector_results),
+                query=body.query,
+                search_method="vector",
+            )
 
-                # Search using FAISS
-                distances, indices = faiss_service.search_by_text(
-                    text=body.query,
-                    k=min(top_k, recipe_service.get_total_count()),
-                    embedding_service=embedding_service
-                )
-
-                # Convert results to RecipeWithMatch
-                results = []
-                recipes = recipe_service.get_all_recipes(limit=recipe_service.get_total_count())
-
-                for idx, dist in zip(indices, distances):
-                    if idx < len(recipes):
-                        recipe = recipes[idx]
-                        results.append(
-                            RecipeWithMatch(
-                                **recipe.dict(),
-                                matchingCount=0,
-                                matchingIngredients=[]
-                            )
-                        )
-
-                process_time = time.time() - start_time
-                logger.info(f"Text search completed in {process_time:.3f}s: {len(results)} results")
-
-                return RecipeSearchResponse(
-                    recipes=results,
-                    count=len(results),
-                    query=body.query,
-                    search_method="vector"
-                )
-
-            except Exception as e:
-                logger.warning(f"Vector search failed: {e}, falling back to string matching")
-                # Fall through to string matching
-
-        # Fallback: Simple string matching in recipe titles
         logger.info(f"Text search request: '{body.query}', method: string_matching")
-        recipes = recipe_service.get_all_recipes(limit=recipe_service.get_total_count())
-
-        query_lower = body.query.lower()
-        results = []
-
-        for recipe in recipes:
-            if query_lower in recipe.Title.lower():
-                results.append(
-                    RecipeWithMatch(
-                        **recipe.dict(),
-                        matchingCount=0,
-                        matchingIngredients=[]
-                    )
-                )
-                if len(results) >= top_k:
-                    break
-
+        results = _string_match_search(body.query, top_k)
         process_time = time.time() - start_time
-        logger.info(f"Text search completed in {process_time:.3f}s: {len(results)} results")
+        logger.info(f"Text search (string_matching) completed in {process_time:.3f}s: {len(results)} results")
 
         return RecipeSearchResponse(
             recipes=results,
             count=len(results),
             query=body.query,
-            search_method="string_matching"
+            search_method="string_matching",
         )
 
     except HTTPException:
@@ -257,28 +273,11 @@ async def rag_recommend(
         explain = body.explain if body.explain is not None else True
 
         # Fetch interaction history + CF scores for logged-in users
-        user_history: Optional[dict] = None
         user_id: Optional[str] = None
+        user_history: Optional[dict] = None
         cf_scores: Optional[dict] = None
         if user:
-            user_id = user["id"]
-            try:
-                user_history = await database_service.get_user_interaction_map(user_id)
-                logger.info(
-                    f"[{user['email']}] RAG personalized: {len(user_history)} known recipes"
-                )
-            except Exception as exc:
-                logger.warning(f"Could not fetch user history for personalization: {exc}")
-
-            try:
-                all_titles = [r.Title for r in recipe_service.get_all_recipes(
-                    limit=recipe_service.get_total_count()
-                )]
-                cf_scores = await cf_service.get_cf_scores(user_id, all_titles)
-                if cf_scores:
-                    logger.info(f"[{user['email']}] CF: {len(cf_scores)} tarife skor eklendi")
-            except Exception as exc:
-                logger.warning(f"CF skorları hesaplanamadı: {exc}")
+            user_id, user_history, cf_scores = await _fetch_user_rag_context(user)
 
         logger.info(
             f"RAG recommendation: {len(body.ingredients)} ingredients, "

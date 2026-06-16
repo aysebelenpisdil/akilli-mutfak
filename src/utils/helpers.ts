@@ -7,7 +7,7 @@ export const parseIngredientList = (str: string): string[] => {
         const validJson = str.replaceAll("'", '"');
         return JSON.parse(validJson);
     } catch (e) {
-        console.error("Failed to parse ingredient list", str);
+        console.error("Failed to parse ingredient list", str, e);
         return [];
     }
 };

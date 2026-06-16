@@ -4,6 +4,7 @@ Handles text generation using Google Gemini API
 Provides explanations for recipe recommendations
 """
 
+import json
 import logging
 import re
 import time
@@ -16,6 +17,27 @@ from app.models.recipe import Recipe
 
 # Setup logger
 logger = logging.getLogger(__name__)
+
+
+def _strip_code_fences(raw: str) -> str:
+    """Remove markdown code fences from LLM output."""
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+    if raw.endswith("```"):
+        raw = raw[:-3].rstrip()
+    if raw.startswith("json"):
+        raw = raw[4:].lstrip()
+    return raw
+
+
+def _normalize_llm_json(text: str) -> str:
+    """Convert Python-style literals to valid JSON."""
+    text = re.sub(r'\bNone\b', 'null', text)
+    text = re.sub(r'\bTrue\b', 'true', text)
+    text = re.sub(r'\bFalse\b', 'false', text)
+    text = re.sub(r',\s*}', '}', text)
+    text = re.sub(r',\s*]', ']', text)
+    return text
 
 
 class LLMService:
@@ -102,6 +124,40 @@ class LLMService:
         "skip": "atladı",
     }
 
+    def _build_history_note(self, user_history: Dict[str, str]) -> str:
+        """Build the personalization note from user interaction history."""
+        liked = [t for t, a in user_history.items() if a in ("like", "cook", "save")]
+        skipped = [t for t, a in user_history.items() if a == "skip"]
+        note = ""
+        if liked:
+            note += f"\nKullanıcı geçmişte şu tarifleri beğendi/pişirdi: {', '.join(liked[:5])}."
+        if skipped:
+            note += f"\nKullanıcı şu tarifleri daha önce atladı (ilgilenmedi): {', '.join(skipped[:5])}."
+        return note
+
+    def _build_preferences_part(self, user_preferences: Dict[str, Any]) -> Optional[str]:
+        """Return a formatted context string for dietary preferences, or None if none active."""
+        active_prefs = []
+        if user_preferences.get('vegan'):
+            active_prefs.append('Vegan')
+        if user_preferences.get('vegetarian') and not user_preferences.get('vegan'):
+            active_prefs.append('Vejetaryen')
+        if user_preferences.get('glutenFree'):
+            active_prefs.append('Glutensiz')
+        if user_preferences.get('dairyFree'):
+            active_prefs.append('Süt Ürünü İçermez')
+        if user_preferences.get('nutAllergy'):
+            active_prefs.append('Kuruyemiş İçermez')
+        return f"**Diyet Tercihleri:** {', '.join(active_prefs)}" if active_prefs else None
+
+    def _build_recipe_note(self, recipe: Recipe, user_history: Optional[Dict[str, str]]) -> str:
+        """Return a bracketed history note for a recipe, or empty string."""
+        if not user_history:
+            return ""
+        interaction = user_history.get(recipe.Title)
+        label = self._HISTORY_LABELS.get(interaction, "") if interaction else ""
+        return f" [Kullanıcı bu tarifi daha önce {label}]" if label else ""
+
     def _build_prompt(
         self,
         user_ingredients: List[str],
@@ -111,14 +167,7 @@ class LLMService:
         user_history: Optional[Dict[str, str]] = None,
     ) -> str:
         """Build prompt for Gemini API, optionally injecting user history context."""
-        history_note = ""
-        if user_history:
-            liked_titles = [t for t, a in user_history.items() if a in ("like", "cook", "save")]
-            skipped_titles = [t for t, a in user_history.items() if a == "skip"]
-            if liked_titles:
-                history_note += f"\nKullanıcı geçmişte şu tarifleri beğendi/pişirdi: {', '.join(liked_titles[:5])}."
-            if skipped_titles:
-                history_note += f"\nKullanıcı şu tarifleri daha önce atladı (ilgilenmedi): {', '.join(skipped_titles[:5])}."
+        history_note = self._build_history_note(user_history) if user_history else ""
 
         system_prompt = f"""Sen profesyonel bir Türk şefisin ve kullanıcının yemek alışkanlıklarını hatırlayan kişisel şefisin. Kullanıcıya elindeki malzemelere en uygun tarifi neden önerdiğini, malzemelerin uyumunu vurgulayarak, samimi ve iştah açıcı bir Türkçe ile açıkla.{history_note}
 
@@ -134,19 +183,9 @@ Kurallar:
         context_parts = [f"**Mevcut Malzemeler:** {', '.join(user_ingredients)}"]
 
         if user_preferences:
-            active_prefs = []
-            if user_preferences.get('vegan'):
-                active_prefs.append('Vegan')
-            if user_preferences.get('vegetarian') and not user_preferences.get('vegan'):
-                active_prefs.append('Vejetaryen')
-            if user_preferences.get('glutenFree'):
-                active_prefs.append('Glutensiz')
-            if user_preferences.get('dairyFree'):
-                active_prefs.append('Süt Ürünü İçermez')
-            if user_preferences.get('nutAllergy'):
-                active_prefs.append('Kuruyemiş İçermez')
-            if active_prefs:
-                context_parts.append(f"**Diyet Tercihleri:** {', '.join(active_prefs)}")
+            pref_part = self._build_preferences_part(user_preferences)
+            if pref_part:
+                context_parts.append(pref_part)
 
         if excluded_ingredients:
             context_parts.append(f"**Hariç Tutulan Malzemeler:** {', '.join(excluded_ingredients)}")
@@ -155,12 +194,7 @@ Kurallar:
         for i, recipe in enumerate(recommended_recipes[:3], 1):
             ingredients_text = recipe.Cleaned_Ingredients or recipe.Ingredients
             ingredients_clean = ingredients_text.replace('[', '').replace(']', '').replace("'", '')
-            recipe_note = ""
-            if user_history:
-                interaction = user_history.get(recipe.Title)
-                label = self._HISTORY_LABELS.get(interaction, "")
-                if label:
-                    recipe_note = f" [Kullanıcı bu tarifi daha önce {label}]"
+            recipe_note = self._build_recipe_note(recipe, user_history)
             recipes_text += f"\n{i}. {recipe.Title}{recipe_note} - Malzemeler: {ingredients_clean[:200]}\n"
 
         prompt = f"""{system_prompt}
@@ -237,6 +271,24 @@ Bu tariflerin neden önerildiğini kısaca özetle. Düz metin yaz, markdown kul
             logger.warning("Returning None for explanation")
             return None
 
+    def _parse_llm_json(self, raw: str) -> Optional[Dict[str, Any]]:
+        """Parse and normalize LLM JSON output, with regex fallback on failure."""
+        normalized = _normalize_llm_json(raw)
+        try:
+            return json.loads(normalized)
+        except json.JSONDecodeError as parse_err:
+            match = re.search(r'\{[\s\S]*\}', raw)
+            if match:
+                try:
+                    return json.loads(_normalize_llm_json(match.group(0)))
+                except json.JSONDecodeError:
+                    pass
+            logger.warning(
+                f"LLM JSON parse failed ({parse_err}), raw response:\n{raw}\n"
+                "returning empty substitutions"
+            )
+            return None
+
     def generate_substitutions(
         self,
         recipe_title: str,
@@ -264,8 +316,7 @@ Bu tariflerin neden önerildiğini kısaca özetle. Düz metin yaz, markdown kul
                 return None
 
             subs_example = {ing: ["ikame1", "ikame2"] for ing in missing_ingredients[:2]}
-            import json as _json
-            example_str = _json.dumps({"substitutions": subs_example, "explanation": "Örnek açıklama"}, ensure_ascii=False)
+            example_str = json.dumps({"substitutions": subs_example, "explanation": "Örnek açıklama"}, ensure_ascii=False)
 
             prompt = f"""Sen profesyonel bir Türk mutfağı şefisin. Sadece geçerli JSON döndür, başka metin yazma.
 
@@ -286,42 +337,11 @@ Yanıtın SADECE bu JSON formatında olsun, tırnak ve virgüllere dikkat et."""
             )
             response = self._try_generate_with_retry(prompt, config)
 
-            import json
-            raw = response.text.strip()
-            # Strip markdown code fences if present
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-            if raw.endswith("```"):
-                raw = raw[:-3].rstrip()
-            if raw.startswith("json"):
-                raw = raw[4:].lstrip()
+            raw = _strip_code_fences(response.text.strip())
+            result = self._parse_llm_json(raw)
 
-            def _normalize_llm_json(text: str) -> str:
-                """Python-style değerleri geçerli JSON'a çevir."""
-                text = re.sub(r'\bNone\b', 'null', text)
-                text = re.sub(r'\bTrue\b', 'true', text)
-                text = re.sub(r'\bFalse\b', 'false', text)
-                text = re.sub(r',\s*}', '}', text)
-                text = re.sub(r',\s*]', ']', text)
-                return text
-
-            result = None
-            try:
-                result = json.loads(_normalize_llm_json(raw))
-            except json.JSONDecodeError as parse_err:
-                match = re.search(r'\{[\s\S]*\}', raw)
-                if match:
-                    try:
-                        candidate = _normalize_llm_json(match.group(0))
-                        result = json.loads(candidate)
-                    except json.JSONDecodeError:
-                        pass
-                if result is None:
-                    logger.warning(
-                        f"LLM JSON parse failed ({parse_err}), raw response:\n{raw}\n"
-                        "returning empty substitutions"
-                    )
-                    return {"substitutions": {}, "explanation": "İkame önerileri şu an yüklenemedi."}
+            if result is None:
+                return {"substitutions": {}, "explanation": "İkame önerileri şu an yüklenemedi."}
 
             logger.debug(f"Substitutions generated for {len(missing_ingredients)} ingredients")
             return result

@@ -16,9 +16,17 @@ from app.services.tfidf_service import TFIDFService, _clean_ingredients_text
 # ---------- dummy recipe fixture ----------
 
 class DummyRecipe:
-    def __init__(self, title, cleaned):
-        self.Title = title
-        self.Cleaned_Ingredients = cleaned
+    def __init__(self, title: str, cleaned_ingredients: str):
+        self.title = title
+        self.cleaned_ingredients = cleaned_ingredients
+
+    @property
+    def Title(self) -> str:
+        return self.title
+
+    @property
+    def Cleaned_Ingredients(self) -> str:
+        return self.cleaned_ingredients
 
 
 CORPUS = [

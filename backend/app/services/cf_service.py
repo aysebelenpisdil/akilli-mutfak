@@ -83,6 +83,39 @@ class CFService:
             vectors[user_id][recipe_title] = max(existing, weight) if weight > 0 else min(existing, weight)
         return vectors
 
+    def _find_similar_users(
+        self,
+        user_id: str,
+        user_vec: Dict[str, float],
+        all_vectors: Dict[str, Dict[str, float]],
+        top_n: int,
+    ) -> List[tuple]:
+        """Return top-N similar users sorted by cosine similarity (descending)."""
+        similarities = [
+            (other_id, _cosine(user_vec, other_vec))
+            for other_id, other_vec in all_vectors.items()
+            if other_id != user_id
+        ]
+        similarities = [(uid, sim) for uid, sim in similarities if sim > 0]
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:top_n]
+
+    @staticmethod
+    def _compute_raw_scores(
+        user_vec: Dict[str, float],
+        top_similar: List[tuple],
+        all_vectors: Dict[str, Dict[str, float]],
+        candidate_set: set,
+    ) -> Dict[str, float]:
+        """Compute weighted CF scores for candidate recipes from similar users."""
+        raw_scores: Dict[str, float] = {}
+        for other_id, sim in top_similar:
+            for title, weight in all_vectors[other_id].items():
+                if title not in candidate_set or title in user_vec:
+                    continue
+                raw_scores[title] = raw_scores.get(title, 0.0) + sim * weight
+        return raw_scores
+
     async def get_cf_scores(
         self,
         user_id: str,
@@ -110,39 +143,16 @@ class CFService:
             logger.debug(f"CF: {user_id} için etkileşim yok (cold-start)")
             return {}
 
-        # Benzer kullanıcıları bul (kendisi hariç)
-        similarities: List[tuple] = []
-        for other_id, other_vec in all_vectors.items():
-            if other_id == user_id:
-                continue
-            sim = _cosine(user_vec, other_vec)
-            if sim > 0:
-                similarities.append((other_id, sim))
-
-        if not similarities:
+        top_similar = self._find_similar_users(user_id, user_vec, all_vectors, top_n_similar)
+        if not top_similar:
             return {}
-
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        top_similar = similarities[:top_n_similar]
 
         logger.debug(
             f"CF: {user_id} için top-{len(top_similar)} benzer kullanıcı: "
             + ", ".join(f"{uid[:20]}({sim:.2f})" for uid, sim in top_similar)
         )
 
-        # Aday tarifler için ağırlıklı CF skoru
-        candidate_set = set(candidate_titles)
-        raw_scores: Dict[str, float] = {}
-        for other_id, sim in top_similar:
-            other_vec = all_vectors[other_id]
-            for title, weight in other_vec.items():
-                if title not in candidate_set:
-                    continue
-                # Kullanıcı zaten bu tarifte etkileşim yapmışsa CF'den çıkar
-                if title in user_vec:
-                    continue
-                raw_scores[title] = raw_scores.get(title, 0.0) + sim * weight
-
+        raw_scores = self._compute_raw_scores(user_vec, top_similar, all_vectors, set(candidate_titles))
         if not raw_scores:
             return {}
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { getShoppingList, saveShoppingList, ShoppingListItem } from '../utils/api';
 
@@ -18,6 +18,29 @@ interface ShoppingListContextType {
 const STORAGE_KEY = 'shoppingListItems';
 const normalize = (s: string) => s.trim().toLowerCase();
 
+function safeParseItems(raw: string | null): ShoppingListItem[] {
+    if (!raw) return [];
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function _applyIngredient(next: ShoppingListItem[], ing: string, recipeTitle: string): boolean {
+    const key = normalize(ing);
+    const idx = next.findIndex(i => i.name === key);
+    if (idx >= 0) {
+        if (!next[idx].from_recipes.includes(recipeTitle)) {
+            next[idx] = { ...next[idx], from_recipes: [...next[idx].from_recipes, recipeTitle] };
+        }
+        return false;
+    }
+    next.push({ name: key, display_name: ing.trim(), purchased: false, from_recipes: [recipeTitle] });
+    return true;
+}
+
 const ShoppingListContext = createContext<ShoppingListContextType | undefined>(undefined);
 
 export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -25,10 +48,9 @@ export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ childr
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const skipSaveRef = useRef(false);
 
-    const [items, setItems] = useState<ShoppingListItem[]>(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [items, setItems] = useState<ShoppingListItem[]>(() =>
+        safeParseItems(localStorage.getItem(STORAGE_KEY))
+    );
 
     const mergeItems = (a: ShoppingListItem[], b: ShoppingListItem[]): ShoppingListItem[] => {
         const map = new Map<string, ShoppingListItem>();
@@ -50,7 +72,7 @@ export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ childr
     useEffect(() => {
         if (user) {
             (async () => {
-                const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as ShoppingListItem[];
+                const local = safeParseItems(localStorage.getItem(STORAGE_KEY));
                 const { items: remote } = await getShoppingList();
                 const merged = mergeItems(local, remote);
                 setItems(merged);
@@ -62,7 +84,7 @@ export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ childr
             // Login sırasında localStorage temizlenir; çıkışta boş localStorage
             // görünce setItems([]) çağırmak DB listesini sıfırlar — bu yüzden
             // sadece localStorage'da veri varsa yükle, yoksa state'i koru.
-            if (saved) setItems(JSON.parse(saved));
+            if (saved) setItems(safeParseItems(saved));
         }
     }, [user?.id]);
 
@@ -83,7 +105,7 @@ export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ childr
         return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
     }, [user?.id, items]);
 
-    const addItem = (name: string, displayName?: string, fromRecipe?: string) => {
+    const addItem = useCallback((name: string, displayName?: string, fromRecipe?: string) => {
         const key = normalize(name);
         if (!key) return;
         setItems(prev => {
@@ -101,55 +123,49 @@ export const ShoppingListProvider: React.FC<{ children: ReactNode }> = ({ childr
                 from_recipes: fromRecipe ? [fromRecipe] : [],
             }];
         });
-    };
+    }, []);
 
     // Single setItems call to avoid race conditions with multiple ingredients
-    const addItemsFromRecipe = (recipeTitle: string, missingIngredients: string[]): number => {
+    const addItemsFromRecipe = useCallback((recipeTitle: string, missingIngredients: string[]): number => {
         let added = 0;
         setItems(prev => {
             const next = [...prev];
             missingIngredients.forEach(ing => {
-                const key = normalize(ing);
-                const idx = next.findIndex(i => i.name === key);
-                if (idx >= 0) {
-                    if (!next[idx].from_recipes.includes(recipeTitle)) {
-                        next[idx] = { ...next[idx], from_recipes: [...next[idx].from_recipes, recipeTitle] };
-                    }
-                } else {
-                    added++;
-                    next.push({ name: key, display_name: ing.trim(), purchased: false, from_recipes: [recipeTitle] });
-                }
+                if (_applyIngredient(next, ing, recipeTitle)) added++;
             });
             return next;
         });
         return added;
-    };
+    }, []);
 
-    const removeItem = (name: string) =>
-        setItems(prev => prev.filter(i => i.name !== normalize(name)));
+    const removeItem = useCallback((name: string) =>
+        setItems(prev => prev.filter(i => i.name !== normalize(name))), []);
 
-    const togglePurchased = (name: string) =>
-        setItems(prev => prev.map(i => i.name === normalize(name) ? { ...i, purchased: !i.purchased } : i));
+    const togglePurchased = useCallback((name: string) =>
+        setItems(prev => prev.map(i => i.name === normalize(name) ? { ...i, purchased: !i.purchased } : i)), []);
 
-    const clearPurchased = () => setItems(prev => prev.filter(i => !i.purchased));
-    const clearAll = () => setItems([]);
+    const clearPurchased = useCallback(() => setItems(prev => prev.filter(i => !i.purchased)), []);
+    const clearAll = useCallback(() => setItems([]), []);
 
-    const isItemInList = (name: string) => items.some(i => i.name === normalize(name));
+    const isItemInList = useCallback((name: string) => items.some(i => i.name === normalize(name)), [items]);
     const pendingCount = items.filter(i => !i.purchased).length;
 
+    const contextValue = useMemo(() => ({
+        items,
+        addItem,
+        addItemsFromRecipe,
+        removeItem,
+        togglePurchased,
+        clearPurchased,
+        clearAll,
+        totalCount: items.length,
+        pendingCount,
+        isItemInList,
+    }), [items, addItem, addItemsFromRecipe, removeItem, togglePurchased,
+        clearPurchased, clearAll, pendingCount, isItemInList]);
+
     return (
-        <ShoppingListContext.Provider value={{
-            items,
-            addItem,
-            addItemsFromRecipe,
-            removeItem,
-            togglePurchased,
-            clearPurchased,
-            clearAll,
-            totalCount: items.length,
-            pendingCount,
-            isItemInList,
-        }}>
+        <ShoppingListContext.Provider value={contextValue}>
             {children}
         </ShoppingListContext.Provider>
     );

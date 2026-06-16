@@ -43,7 +43,7 @@ const ShoppingListPage: React.FC = () => {
     };
 
     const handleClearAll = () => {
-        if (window.confirm('Alışveriş listesini tamamen temizlemek istediğinizden emin misiniz?')) {
+        if (globalThis.confirm('Alışveriş listesini tamamen temizlemek istediğinizden emin misiniz?')) {
             clearAll();
         }
     };

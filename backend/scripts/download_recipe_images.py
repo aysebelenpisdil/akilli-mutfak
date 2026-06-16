@@ -79,57 +79,77 @@ def download(url: str, dest: Path) -> bool:
         return False
 
 
-def main():
-    try:
-        from ddgs import DDGS
-    except ImportError:
-        try:
-            from duckduckgo_search import DDGS
-        except ImportError:
-            print("Hata: ddgs kurulu değil.")
-            print("Çalıştır: pip3 install ddgs")
-            return
-
-    data = json.loads(RECIPES_JSON.read_text(encoding="utf-8"))
-    existing = {f.name for f in IMG_DIR.iterdir() if f.suffix in (".jpg", ".jpeg")}
-
+def _find_missing_recipes(data: list, existing: set) -> list:
+    """Return list of (img_name, cleaned_title) for recipes without a local image."""
     missing = []
     for recipe in data:
         img_name = recipe.get("Image_Name", "")
-        if not img_name or f"{img_name}.jpg" in existing:
-            continue
-        title = clean_title(recipe.get("Title", ""))
-        missing.append((img_name, title))
+        if img_name and f"{img_name}.jpg" not in existing:
+            missing.append((img_name, clean_title(recipe.get("Title", ""))))
+    return missing
+
+
+def _search_first_url(ddgs, title: str) -> str | None:
+    """Try multiple query variants and return the first successful image URL."""
+    short = base_title(title)
+    for query in [f"{short} tarifi", f"{short} yemek", short]:
+        url = search_image_url(ddgs, query)
+        if url:
+            return url
+        time.sleep(2.0)
+    return None
+
+
+def _process_recipe(ddgs, img_name: str, title: str, existing: set) -> bool:
+    """Download image for one recipe. Returns True if downloaded successfully."""
+    dest = IMG_DIR / f"{img_name}.jpg"
+    url = _search_first_url(ddgs, title)
+    if url and download(url, dest):
+        size_kb = dest.stat().st_size // 1024
+        print(f"         ✅  kaydedildi ({size_kb} KB)")
+        existing.add(dest.name)
+        return True
+    print(f"         ❌  bulunamadı")
+    return False
+
+
+def _import_ddgs():
+    """Import DDGS from whichever package is installed, or return None."""
+    try:
+        from ddgs import DDGS
+        return DDGS
+    except ImportError:
+        pass
+    try:
+        from duckduckgo_search import DDGS
+        return DDGS
+    except ImportError:
+        return None
+
+
+def main():
+    DDGS = _import_ddgs()
+    if DDGS is None:
+        print("Hata: ddgs kurulu değil.")
+        print("Çalıştır: pip3 install ddgs")
+        return
+
+    data = json.loads(RECIPES_JSON.read_text(encoding="utf-8"))
+    existing = {f.name for f in IMG_DIR.iterdir() if f.suffix in (".jpg", ".jpeg")}
+    missing = _find_missing_recipes(data, existing)
 
     print(f"İndirilecek görsel: {len(missing)}\n")
 
     downloaded = 0
     not_found = []
-
-    # Tek bir DDGS oturumu — her sorgu için yeni bağlantı açılmıyor
     ddgs = DDGS()
 
     for i, (img_name, title) in enumerate(missing, 1):
-        dest = IMG_DIR / f"{img_name}.jpg"
-        short_title = base_title(title)
         print(f"[{i:3}/{len(missing)}] {title}")
-
-        url = None
-        for query in [f"{short_title} tarifi", f"{short_title} yemek", short_title]:
-            url = search_image_url(ddgs, query)
-            if url:
-                break
-            time.sleep(2.0)
-
-        if url and download(url, dest):
-            size_kb = dest.stat().st_size // 1024
-            print(f"         ✅  kaydedildi ({size_kb} KB)")
-            existing.add(dest.name)
+        if _process_recipe(ddgs, img_name, title, existing):
             downloaded += 1
         else:
-            print(f"         ❌  bulunamadı")
             not_found.append(img_name)
-
         time.sleep(3.0)
 
     print(f"\n{'='*50}")

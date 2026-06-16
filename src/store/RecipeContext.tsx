@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { useFridge } from './FridgeContext';
 import { getRAGRecommendations, ApiError } from '../utils/api';
 import { RecipeWithMatch } from '../types';
@@ -58,7 +58,7 @@ export const RecipeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [page, setPage] = useState(1);
     const [hasSearched, setHasSearched] = useState(false);
 
-    const fetchRecipes = async () => {
+    const fetchRecipes = useCallback(async () => {
         setHasSearched(true);
         setPage(1);
 
@@ -95,17 +95,20 @@ export const RecipeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         } finally {
             setLoading(false);
         }
-    };
+    }, [fridgeIngredients, dietaryPreferences, excludedIngredients]);
 
-    const loadMore = () => setPage(p => p + 1);
+    const loadMore = useCallback(() => setPage(p => p + 1), []);
+
+    const contextValue = useMemo(() => ({
+        rawRecipes, loading, error, explanation, metadata, responseTime,
+        calorieFilter, setCalorieFilter,
+        page, loadMore,
+        fetchRecipes, hasSearched,
+    }), [rawRecipes, loading, error, explanation, metadata, responseTime,
+        calorieFilter, setCalorieFilter, page, loadMore, fetchRecipes, hasSearched]);
 
     return (
-        <RecipeContext.Provider value={{
-            rawRecipes, loading, error, explanation, metadata, responseTime,
-            calorieFilter, setCalorieFilter,
-            page, loadMore,
-            fetchRecipes, hasSearched,
-        }}>
+        <RecipeContext.Provider value={contextValue}>
             {children}
         </RecipeContext.Provider>
     );

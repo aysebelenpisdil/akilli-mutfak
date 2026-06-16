@@ -14,7 +14,7 @@ async def test_survey_stats_requires_auth(client):
 
 
 async def test_submit_survey_success(auth_client):
-    client, email = auth_client
+    client, _ = auth_client
     r = await client.post(
         "/api/feedback/survey",
         json={

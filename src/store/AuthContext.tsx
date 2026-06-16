@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
 import { getCurrentUser, logoutUser } from '../utils/api';
@@ -51,16 +51,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         checkSession();
     }, [checkSession]);
 
-    const login = async (email: string, password: string) => {
+    const login = useCallback(async (email: string, password: string) => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw new Error(error.message);
 
         if (!data.session?.access_token) throw new Error('Login succeeded but no session was returned');
         const localUser = await bridgeToBackend(data.session.access_token);
         setUser(localUser);
-    };
+    }, []);
 
-    const signup = async (email: string, password: string) => {
+    const signup = useCallback(async (email: string, password: string) => {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw new Error(error.message);
         if (!data.session) {
@@ -68,9 +68,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
         const localUser = await bridgeToBackend(data.session.access_token);
         setUser(localUser);
-    };
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         if (logoutLoading) return;
         setLogoutLoading(true);
         try {
@@ -80,10 +80,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } finally {
             setLogoutLoading(false);
         }
-    };
+    }, [logoutLoading]);
+
+    const contextValue = useMemo(
+        () => ({ user, loading, logoutLoading, login, signup, logout }),
+        [user, loading, logoutLoading, login, signup, logout]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, loading, logoutLoading, login, signup, logout }}>
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );
