@@ -93,8 +93,6 @@ class LLMService:
                             raise
                     else:
                         raise
-                except Exception:
-                    raise
 
     # Interaction type → human-readable Turkish label for prompt injection
     _HISTORY_LABELS: Dict[str, str] = {

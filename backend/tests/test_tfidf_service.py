@@ -111,37 +111,37 @@ def test_load_returns_false_missing_files(tmp_path):
 
 def test_domates_query_top_result(built_service):
     """'domates' içeren tek tarif (Domates Çorbası) en üstte olmalı."""
-    scores, indices = built_service.search_by_ingredients(["domates"], k=3)
+    _, indices = built_service.search_by_ingredients(["domates"], k=3)
     assert len(indices) > 0
     assert indices[0] == 0  # Domates Çorbası index=0
 
 
 def test_mercimek_query_top_result(built_service):
     """'mercimek' içeren tek tarif (Mercimek Çorbası, index=2) en üstte olmalı."""
-    scores, indices = built_service.search_by_ingredients(["mercimek"], k=3)
+    _, indices = built_service.search_by_ingredients(["mercimek"], k=3)
     assert len(indices) > 0
     assert indices[0] == 2
 
 
 def test_scores_descending(built_service):
     """Dönen skorlar azalan sırada olmalı."""
-    scores, indices = built_service.search_by_ingredients(["soğan", "yağ"], k=3)
+    scores, _ = built_service.search_by_ingredients(["soğan", "yağ"], k=3)
     assert list(scores) == sorted(scores, reverse=True)
 
 
 def test_unknown_ingredient_returns_empty(built_service):
     """Vokabülerde olmayan malzeme → boş sonuç, exception değil."""
-    scores, indices = built_service.search_by_ingredients(["xyzzyx_yok"], k=3)
+    _, indices = built_service.search_by_ingredients(["xyzzyx_yok"], k=3)
     assert len(indices) == 0
 
 
 def test_k_limits_results(built_service):
-    scores, indices = built_service.search_by_ingredients(["soğan"], k=2)
+    _, indices = built_service.search_by_ingredients(["soğan"], k=2)
     assert len(indices) <= 2
 
 
 def test_scores_nonnegative(built_service):
-    scores, indices = built_service.search_by_ingredients(["soğan", "tuz"], k=3)
+    scores, _ = built_service.search_by_ingredients(["soğan", "tuz"], k=3)
     assert all(s >= 0 for s in scores)
 
 

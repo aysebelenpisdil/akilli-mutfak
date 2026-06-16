@@ -98,7 +98,10 @@ const FridgePage: React.FC = () => {
                             'bg-yellow-500 animate-pulse'
                         }`}></span>
                         <span className="absolute -bottom-8 right-0 hidden group-hover:block bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                            Sunucu: {backendStatus === 'online' ? 'Çevrimiçi' : backendStatus === 'offline' ? 'Çevrimdışı' : 'Kontrol ediliyor...'}
+                            {(() => {
+                                const statusLabel: Record<string, string> = { online: 'Çevrimiçi', offline: 'Çevrimdışı' };
+                                return `Sunucu: ${statusLabel[backendStatus] ?? 'Kontrol ediliyor...'}`;
+                            })()}
                         </span>
                     </button>
                 </div>
@@ -187,8 +190,8 @@ const FridgePage: React.FC = () => {
                                         {availableRecentIngredients.slice(0, 5).map((ingredientName) => {
                                             const details = getIngredientDetails(ingredientName);
                                             // Find the ingredient in the dataset to get count
-                                            const ingredientData = (cleanedIngredients as any[]).find(
-                                                (ing: any) => ing.name === ingredientName
+                                            const ingredientData = (cleanedIngredients as Array<{name: string}>).find(
+                                                (ing) => ing.name === ingredientName
                                             );
                                             return (
                                                 <button

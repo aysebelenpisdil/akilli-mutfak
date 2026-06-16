@@ -96,7 +96,7 @@ const RecipeSurvey: React.FC<RecipeSurveyProps> = ({ contextIngredients, recipeT
                                 onChange={() => setCookIntent(v)}
                                 className="accent-amber-500"
                             />
-                            {v === 'yes' ? 'Evet' : v === 'maybe' ? 'Belki' : 'Hayır'}
+                            {({'yes': 'Evet', 'maybe': 'Belki', 'no': 'Hayır'} as const)[v]}
                         </label>
                     ))}
                 </div>

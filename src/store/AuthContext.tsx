@@ -55,7 +55,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw new Error(error.message);
 
-        const localUser = await bridgeToBackend(data.session!.access_token);
+        if (!data.session?.access_token) throw new Error('Login succeeded but no session was returned');
+        const localUser = await bridgeToBackend(data.session.access_token);
         setUser(localUser);
     };
 

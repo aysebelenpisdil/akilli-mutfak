@@ -24,11 +24,11 @@ function makeRecipe(overrides: Partial<RecipeWithMatch> = {}): RecipeWithMatch {
 describe('filterRecipes', () => {
     it('tercih yok → tüm tarifler döner', () => {
         const recipes = [makeRecipe(), makeRecipe({ Title: 'Tarif 2' })];
-        expect(filterRecipes(recipes, noPref, [], undefined)).toHaveLength(2);
+        expect(filterRecipes(recipes, noPref, [])).toHaveLength(2);
     });
 
     it('boş liste ile boş liste döner', () => {
-        expect(filterRecipes([], noPref, [], undefined)).toHaveLength(0);
+        expect(filterRecipes([], noPref, [])).toHaveLength(0);
     });
 
     it('vegan filtresi et içeren tarifi kaldırır', () => {
@@ -36,7 +36,7 @@ describe('filterRecipes', () => {
             Title: 'Etli Tarif',
             Cleaned_Ingredients: "['kıyma', 'soğan']",
         });
-        const result = filterRecipes([etliTarif], { ...noPref, vegan: true }, [], undefined);
+        const result = filterRecipes([etliTarif], { ...noPref, vegan: true }, []);
         expect(result).toHaveLength(0);
     });
 
@@ -45,19 +45,19 @@ describe('filterRecipes', () => {
             Title: 'Vegan Tarif',
             Cleaned_Ingredients: "['nohut', 'domates']",
         });
-        const result = filterRecipes([vegTarif], { ...noPref, vegan: true }, [], undefined);
+        const result = filterRecipes([vegTarif], { ...noPref, vegan: true }, []);
         expect(result).toHaveLength(1);
     });
 
     it('hariç tutulan malzeme tarifi kaldırır', () => {
         const recipe = makeRecipe({ Cleaned_Ingredients: "['fıstık', 'domates']" });
-        const result = filterRecipes([recipe], noPref, ['fıstık'], undefined);
+        const result = filterRecipes([recipe], noPref, ['fıstık']);
         expect(result).toHaveLength(0);
     });
 
     it('hariç tutulan malzeme ilgisiz tarifi kaldırmaz', () => {
         const recipe = makeRecipe({ Cleaned_Ingredients: "['domates', 'soğan']" });
-        const result = filterRecipes([recipe], noPref, ['fıstık'], undefined);
+        const result = filterRecipes([recipe], noPref, ['fıstık']);
         expect(result).toHaveLength(1);
     });
 
@@ -81,13 +81,13 @@ describe('filterRecipes', () => {
 
     it('glutenFree filtresi buğday içeren tarifi kaldırır', () => {
         const recipe = makeRecipe({ Cleaned_Ingredients: "['buğday unu', 'su']" });
-        const result = filterRecipes([recipe], { ...noPref, glutenFree: true }, [], undefined);
+        const result = filterRecipes([recipe], { ...noPref, glutenFree: true }, []);
         expect(result).toHaveLength(0);
     });
 
     it('nutAllergy filtresi fındık içeren tarifi kaldırır', () => {
         const recipe = makeRecipe({ Cleaned_Ingredients: "['fındık', 'şeker']" });
-        const result = filterRecipes([recipe], { ...noPref, nutAllergy: true }, [], undefined);
+        const result = filterRecipes([recipe], { ...noPref, nutAllergy: true }, []);
         expect(result).toHaveLength(0);
     });
 });
@@ -96,16 +96,16 @@ describe('filterRecipes', () => {
 
 describe('getActiveFilterLabels', () => {
     it('tercih yok → boş liste', () => {
-        expect(getActiveFilterLabels(noPref, [], undefined)).toHaveLength(0);
+        expect(getActiveFilterLabels(noPref, [])).toHaveLength(0);
     });
 
     it('vegan aktif → "Vegan" etiketi çıkar', () => {
-        const labels = getActiveFilterLabels({ ...noPref, vegan: true }, [], undefined);
+        const labels = getActiveFilterLabels({ ...noPref, vegan: true }, []);
         expect(labels).toContain('Vegan');
     });
 
     it('glutenFree aktif → etiket çıkar', () => {
-        const labels = getActiveFilterLabels({ ...noPref, glutenFree: true }, [], undefined);
+        const labels = getActiveFilterLabels({ ...noPref, glutenFree: true }, []);
         expect(labels.some(l => l.toLowerCase().includes('gluten'))).toBe(true);
     });
 
@@ -118,12 +118,12 @@ describe('getActiveFilterLabels', () => {
     });
 
     it('hariç malzeme → ilk 3 görünür', () => {
-        const labels = getActiveFilterLabels(noPref, ['a', 'b', 'c'], undefined);
+        const labels = getActiveFilterLabels(noPref, ['a', 'b', 'c']);
         expect(labels.some(l => l.includes('hariç'))).toBe(true);
     });
 
     it('3\'ten fazla hariç malzeme → +N daha gösterilir', () => {
-        const labels = getActiveFilterLabels(noPref, ['a', 'b', 'c', 'd', 'e'], undefined);
+        const labels = getActiveFilterLabels(noPref, ['a', 'b', 'c', 'd', 'e']);
         expect(labels.some(l => l.includes('+'))).toBe(true);
     });
 });

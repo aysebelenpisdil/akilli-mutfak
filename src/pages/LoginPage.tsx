@@ -146,10 +146,11 @@ const LoginPage: React.FC = () => {
                             disabled={loading}
                             className="w-full py-3 px-4 bg-primary text-white font-medium rounded-lg hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading
-                                ? (mode === 'signin' ? 'Giriş yapılıyor...' : 'Kayıt olunuyor...')
-                                : (mode === 'signin' ? 'Giriş Yap' : 'Kayıt Ol')
-                            }
+                            {(() => {
+                                const signinLabel = loading ? 'Giriş yapılıyor...' : 'Giriş Yap';
+                                const signupLabel = loading ? 'Kayıt olunuyor...' : 'Kayıt Ol';
+                                return mode === 'signin' ? signinLabel : signupLabel;
+                            })()}
                         </button>
                     </form>
 

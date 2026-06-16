@@ -266,7 +266,7 @@ const RecipesPage: React.FC = () => {
                                 <Link
                                     to={`/recipe/${encodeURIComponent(recipe.Title)}`}
                                     state={{ matchingIngredients: availability.allMatching, recipe }}
-                                    key={index}
+                                    key={recipe.Title}
                                     onClick={() => trackView(recipe.Title)}
                                     className={`group flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border ${availability.isFullyAvailable ? 'border-green-300 ring-2 ring-green-100' : 'border-gray-100'}`}
                                 >

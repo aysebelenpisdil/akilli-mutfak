@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import text
 from app.config import settings
@@ -30,7 +30,7 @@ class AuthService:
                 return {k: _as_str(v) for k, v in dict(row).items()}
 
         user_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         async with engine.begin() as conn:
             await conn.execute(
                 text("INSERT INTO users (id, email, created_at) VALUES (:id, :email, :created_at)"),
@@ -40,7 +40,7 @@ class AuthService:
 
     async def generate_magic_link(self, user_id: str) -> str:
         token = serializer.dumps(user_id, salt="magic-link")
-        expires_at = datetime.utcnow() + timedelta(seconds=settings.MAGIC_LINK_EXPIRY)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=settings.MAGIC_LINK_EXPIRY)
 
         async with engine.begin() as conn:
             await conn.execute(
@@ -72,7 +72,7 @@ class AuthService:
                 {"id": link["id"]},
             )
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             await conn.execute(
                 text("UPDATE users SET last_login_at = :now WHERE id = :id"),
                 {"now": now, "id": user_id},
@@ -87,7 +87,7 @@ class AuthService:
 
     async def create_session(self, user_id: str) -> str:
         session_id = str(uuid.uuid4())
-        expires_at = datetime.utcnow() + timedelta(days=settings.SESSION_EXPIRY_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.SESSION_EXPIRY_DAYS)
 
         async with engine.begin() as conn:
             await conn.execute(
@@ -119,7 +119,7 @@ class AuthService:
             expires_at = row["expires_at"]
             if isinstance(expires_at, str):
                 expires_at = datetime.fromisoformat(expires_at)
-            if expires_at < datetime.utcnow():
+            if expires_at < datetime.now(timezone.utc):
                 async with engine.begin() as wconn:
                     await wconn.execute(
                         text("UPDATE sessions SET is_active = 0 WHERE id = :id"),
