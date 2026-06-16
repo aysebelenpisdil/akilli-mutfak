@@ -36,7 +36,7 @@ const PreferencesPage: React.FC = () => {
                 </div>
 
                 <div className="bg-white shadow-sm rounded-xl divide-y divide-gray-200 border border-gray-100">
-                    {Object.keys(dietaryPreferences).map((key) => {
+                    {(Object.keys(dietaryPreferences) as Array<keyof typeof dietaryPreferences>).map((key) => {
                         const labels: Record<string, string> = {
                             glutenFree: 'Glutensiz',
                             vegetarian: 'Vejetaryen',
@@ -45,7 +45,7 @@ const PreferencesPage: React.FC = () => {
                             nutAllergy: 'Kuruyemiş İçermez',
                         };
                         const label = labels[key] || key;
-                        const isChecked = dietaryPreferences[key as keyof typeof dietaryPreferences];
+                        const isChecked = dietaryPreferences[key];
 
                         return (
                             <div key={key} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
@@ -56,7 +56,7 @@ const PreferencesPage: React.FC = () => {
                                     </span>
                                 </div>
                                 <button
-                                    onClick={() => handleToggle(key as keyof typeof dietaryPreferences)}
+                                    onClick={() => handleToggle(key)}
                                     type="button"
                                     className={`${
                                         isChecked ? 'bg-primary' : 'bg-gray-200'

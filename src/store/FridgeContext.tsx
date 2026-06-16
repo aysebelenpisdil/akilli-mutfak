@@ -55,7 +55,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const raw = localStorage.getItem('dietaryPreferences');
             const parsed: unknown = raw ? JSON.parse(raw) : null;
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return DEFAULT_DIETARY;
-            return { ...DEFAULT_DIETARY, ...Object.fromEntries(Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, Boolean(v)])) } as DietaryPreferences;
+            return { ...DEFAULT_DIETARY, ...Object.fromEntries(Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, Boolean(v)])) };
         } catch {
             return DEFAULT_DIETARY;
         }
@@ -81,7 +81,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         try {
             const { dietary, excluded } = await getPreferences();
             if (Object.keys(dietary).length > 0) {
-                setDietaryPreferences({ ...DEFAULT_DIETARY, ...dietary } as DietaryPreferences);
+                setDietaryPreferences({ ...DEFAULT_DIETARY, ...dietary });
             }
             setExcludedIngredients(excluded);
         } catch {
@@ -101,7 +101,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     useEffect(() => {
         if (!user) {
             const sanitized = Array.isArray(fridgeIngredients) ? fridgeIngredients.filter(i => typeof i === 'string') : [];
-            localStorage.setItem('fridgeIngredients', JSON.stringify(sanitized));
+            try { localStorage.setItem('fridgeIngredients', JSON.stringify(sanitized)); } catch { /* storage unavailable */ }
             return;
         }
         if (skipFridgeSaveRef.current) {
@@ -121,9 +121,11 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     useEffect(() => {
         if (!user) {
             const safeDietary = Object.fromEntries(Object.entries(dietaryPreferences).map(([k, v]) => [String(k), Boolean(v)]));
-            localStorage.setItem('dietaryPreferences', JSON.stringify(safeDietary));
             const sanitizedExcluded = Array.isArray(excludedIngredients) ? excludedIngredients.filter(i => typeof i === 'string') : [];
-            localStorage.setItem('excludedIngredients', JSON.stringify(sanitizedExcluded));
+            try {
+                localStorage.setItem('dietaryPreferences', JSON.stringify(safeDietary));
+                localStorage.setItem('excludedIngredients', JSON.stringify(sanitizedExcluded));
+            } catch { /* storage unavailable */ }
             return;
         }
         if (skipPrefsSaveRef.current) {

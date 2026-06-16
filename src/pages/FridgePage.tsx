@@ -115,7 +115,7 @@ const FridgePage: React.FC = () => {
                     <div className="mt-4 max-w-xl mx-auto">
                         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                             <p className="text-sm text-yellow-800">
-                                ⚠️ Sunucu çevrimdışı. Tarifler statik veriden yüklenecek.
+                                ⚠️ Sunucu çevrimdışı. Tarifler statik veriden yüklenecek.{" "}
                                 <button onClick={checkBackendStatus} className="ml-1 underline font-medium hover:text-yellow-900">
                                     Tekrar Dene
                                 </button>

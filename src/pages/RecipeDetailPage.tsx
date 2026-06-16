@@ -167,7 +167,7 @@ const RecipeDetailPage: React.FC = () => {
     const instructionsList = recipe.Instructions.split('\n').filter(i => i.trim().length > 0);
 
     const totalCalories = estimateRecipeCalories(recipe.Cleaned_Ingredients);
-    const calorieLabel = totalCalories != null ? getCalorieLabel(totalCalories) : null;
+    const calorieLabel = totalCalories == null ? null : getCalorieLabel(totalCalories);
 
     const availability = computeRecipeAvailability(cleanedList, fridgeIngredients, matchingIngredients);
     const missingIngredients = availability.missing;
@@ -361,7 +361,7 @@ const RecipeDetailPage: React.FC = () => {
                         <h2 className="text-2xl font-bold text-gray-900 mb-8 pb-2 border-b border-gray-100">Talimatlar</h2>
                         <div className="space-y-10">
                             {instructionsList.map((step, idx) => (
-                                <div key={`step-${idx}`} className="flex">
+                                <div key={step} className="flex">
                                     <div className="flex-shrink-0 mr-6">
                                         <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white font-bold text-lg">
                                             {idx + 1}

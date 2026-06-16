@@ -2,7 +2,7 @@ import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
 import { useShoppingList } from '../store/ShoppingListContext';
-import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CalorieFilterKey } from '../store/RecipeContext';
+import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CALORIE_FILTER_KEYS, CalorieFilterKey } from '../store/RecipeContext';
 import { recordInteraction, deleteInteractionByRecipe, getInteractionHistory } from '../utils/api';
 import RecipeImage from '../components/RecipeImage';
 import RecipeSurvey from '../components/RecipeSurvey';
@@ -325,7 +325,7 @@ const RecipesPage: React.FC = () => {
                         {/* Calorie Filter */}
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                             <span className="text-sm font-semibold text-gray-700 mr-1">Kalori:</span>
-                            {(Object.keys(CALORIE_FILTER_LABELS) as CalorieFilterKey[]).map(key => (
+                            {CALORIE_FILTER_KEYS.map(key => (
                                 <button
                                     key={key}
                                     onClick={() => setCalorieFilter(key)}

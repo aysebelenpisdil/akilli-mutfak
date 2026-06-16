@@ -33,7 +33,7 @@ const Navbar: React.FC = () => {
                     {/* Desktop links */}
                     <div className="hidden md:flex items-center space-x-2">
                         <Link to="/" className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/')}`}>
-                            Buzdolabım
+                            Buzdolabım{" "}
                             <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
                                 {fridgeIngredients.length}
                             </span>

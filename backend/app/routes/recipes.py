@@ -95,10 +95,10 @@ async def _fetch_user_rag_context(user: dict):
 
 @router.get("/", response_model=dict, responses={500: {"description": "Internal Server Error"}})
 async def get_recipes(
-    ingredients: Optional[str] = Query(None, description="Comma-separated list of ingredients"),
-    q: Optional[str] = Query(None, description="Title substring search"),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0)
+    ingredients: Annotated[Optional[str], Query(description="Comma-separated list of ingredients")] = None,
+    q: Annotated[Optional[str], Query(description="Title substring search")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """
     Get all recipes with optional filtering by ingredients or title substring

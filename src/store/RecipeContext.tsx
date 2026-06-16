@@ -14,6 +14,8 @@ export const CALORIE_RANGES: Record<CalorieFilterKey, CalorieRange | undefined> 
     high: { min: 700 },
 };
 
+export const CALORIE_FILTER_KEYS: CalorieFilterKey[] = ['all', 'low', 'medium', 'high'];
+
 export const CALORIE_FILTER_LABELS: Record<CalorieFilterKey, string> = {
     all: 'Tümü',
     low: 'Düşük (<400)',
