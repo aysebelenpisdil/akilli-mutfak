@@ -152,8 +152,8 @@ const RecipesPage: React.FC = () => {
                         {activeFilters.length > 0 && (
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                 <span className="text-sm font-semibold text-gray-700">Aktif Filtreler:</span>
-                                {activeFilters.map((filter, idx) => (
-                                    <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                {activeFilters.map((filter) => (
+                                    <span key={filter} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                                         {filter}
                                     </span>
                                 ))}

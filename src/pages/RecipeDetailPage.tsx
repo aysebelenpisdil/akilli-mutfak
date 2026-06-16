@@ -191,7 +191,7 @@ const RecipeDetailPage: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-                    
+
                     {/* Sidebar: Ingredients */}
                     <div className="lg:col-span-1">
                         <div className="bg-green-50 rounded-2xl p-6 sm:p-8 sticky top-24">
@@ -206,8 +206,8 @@ const RecipeDetailPage: React.FC = () => {
                                 <div className="mb-6 pb-4 border-b border-green-200">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Eşleşen Malzemeleriniz:</h3>
                                     <ul className="flex flex-wrap gap-2">
-                                        {allMatchingIngredients.map((ing, idx) => (
-                                            <li key={idx} className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm">
+                                        {allMatchingIngredients.map((ing) => (
+                                            <li key={ing} className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm">
                                                 {ing}
                                             </li>
                                         ))}
@@ -226,7 +226,7 @@ const RecipeDetailPage: React.FC = () => {
                                     const subs: string[] | undefined = subsKey ? substitutions![subsKey] : undefined;
 
                                     return (
-                                        <li key={idx}>
+                                        <li key={`ingredient-${idx}`}>
                                             <div className="flex items-start">
                                                 <div className={`flex-shrink-0 h-6 w-6 rounded-full border flex items-center justify-center mr-3 mt-0.5 text-xs ${
                                                     isMissing
@@ -253,8 +253,8 @@ const RecipeDetailPage: React.FC = () => {
                                             </div>
                                             {subs && subs.length > 0 && (
                                                 <div className="ml-9 mt-1 flex flex-wrap gap-1">
-                                                    {subs.map((sub, si) => (
-                                                        <span key={si} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                                                    {subs.map((sub) => (
+                                                        <span key={sub} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
                                                             {sub}
                                                         </span>
                                                     ))}
@@ -327,7 +327,7 @@ const RecipeDetailPage: React.FC = () => {
                         <h2 className="text-2xl font-bold text-gray-900 mb-8 pb-2 border-b border-gray-100">Talimatlar</h2>
                         <div className="space-y-10">
                             {instructionsList.map((step, idx) => (
-                                <div key={idx} className="flex">
+                                <div key={`step-${idx}`} className="flex">
                                     <div className="flex-shrink-0 mr-6">
                                         <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white font-bold text-lg">
                                             {idx + 1}

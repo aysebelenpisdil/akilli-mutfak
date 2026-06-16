@@ -4,7 +4,7 @@ export const parseIngredientList = (str: string): string[] => {
         // Replace single quotes with double quotes for valid JSON,
         // assuming the data format is consistent ['a', 'b']
         // This is a basic parser for the provided data format.
-        const validJson = str.replace(/'/g, '"');
+        const validJson = str.replaceAll("'", '"');
         return JSON.parse(validJson);
     } catch (e) {
         console.error("Failed to parse ingredient list", str);

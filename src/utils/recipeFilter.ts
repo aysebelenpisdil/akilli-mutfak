@@ -4,9 +4,8 @@
  */
 
 import { RecipeWithMatch } from '../types';
-import { getAllForbiddenIngredients } from './dietaryRules';
+import { getAllForbiddenIngredients, DietaryPreferences } from './dietaryRules';
 import { matchesExcludedIngredient } from './ingredientNormalizer';
-import { DietaryPreferences } from './dietaryRules';
 
 export interface CalorieRange {
     min?: number;
