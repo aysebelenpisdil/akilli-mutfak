@@ -61,31 +61,18 @@ app.add_middleware(
 )
 
 
-# Startup event - Initialize RAG Pipeline components
-@app.on_event("startup")
-async def startup_event():
-    """
-    Startup event handler
-    Initializes RAG Pipeline components:
-    1. FAISS index (Retriever)
-    2. Reranker service (lazy load)
-    3. LLM service (lazy load)
-    4. RAG Pipeline (coordinates all components)
-    """
-    logger.info("🚀 Starting Smart Fridge Chef API...")
-    
-    # Step 0: Initialize SQLite database
+async def _init_database() -> None:
     try:
         await database_service.init_db()
         logger.info("✅ PostgreSQL (Supabase) database initialized")
     except Exception as e:
         logger.exception(f"❌ Database initialization failed: {e}")
 
-    # Step 1: Load FAISS index (Retriever)
+
+def _init_faiss() -> None:
     try:
         logger.info("📦 Loading FAISS index (Retriever)...")
         success = faiss_service.load_index()
-        
         if success:
             index_info = faiss_service.get_index_info()
             logger.info("✅ FAISS index loaded successfully")
@@ -96,12 +83,12 @@ async def startup_event():
             logger.warning("⚠️  FAISS index not found or could not be loaded")
             logger.warning("   Vector search will not be available")
             logger.warning("   Application will continue with string matching fallback")
-            
     except Exception as e:
         logger.exception(f"❌ Error loading FAISS index: {e}")
         logger.warning("   Continuing with string matching fallback")
-    
-    # Step 1.5: Load TF-IDF inverted index (hibrit retrieval için)
+
+
+def _init_tfidf() -> None:
     try:
         logger.info("📋 Loading TF-IDF inverted index...")
         success = tfidf_service.load_index()
@@ -116,7 +103,8 @@ async def startup_event():
     except Exception as e:
         logger.exception(f"❌ TF-IDF index yüklenemedi: {e}")
 
-    # Step 1.6: Pre-load embedding model (used for FAISS query encoding)
+
+def _init_embedding() -> None:
     try:
         logger.info("🔤 Pre-loading embedding model...")
         embedding_service._load_model()
@@ -124,7 +112,8 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️  Embedding model pre-load failed: {e}")
 
-    # Step 2: Pre-load Reranker model at startup (avoids cold-start timeout on first request)
+
+def _init_reranker() -> None:
     try:
         if reranker_service.enabled:
             logger.info(f"🔄 Pre-loading reranker model: {reranker_service.model_name} ...")
@@ -135,7 +124,8 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"⚠️  Reranker pre-load failed (will retry on first request): {e}")
 
-    # Step 3: Initialize LLM service (API-based, no local model to load)
+
+def _init_llm() -> None:
     try:
         if llm_service.enabled:
             if llm_service.api_key:
@@ -146,16 +136,29 @@ async def startup_event():
             logger.info("⚠️  LLM service is disabled in config")
     except Exception as e:
         logger.warning(f"⚠️  LLM initialization warning: {e}")
-    
-    # Step 4: RAG Pipeline summary
+
+
+def _log_pipeline_summary() -> None:
     logger.info("🔗 RAG Pipeline ready")
     logger.info("   Components:")
     logger.info(f"      - Retriever (FAISS): {'✅' if faiss_service.is_loaded() else '❌ NOT LOADED'}")
     logger.info(f"      - TF-IDF index: {'✅ (hibrit aktif)' if tfidf_service.is_loaded() else '⚠️  yüklü değil (FAISS-only)'}")
     logger.info(f"      - Reranker: {'✅' if reranker_service.is_loaded() else '❌ NOT LOADED'}")
     logger.info(f"      - Generator (LLM): {'✅' if (llm_service.enabled and llm_service.api_key) else '❌'}")
-    
     logger.info("✅ API startup completed - RAG Pipeline ready")
+
+
+# Startup event - Initialize RAG Pipeline components
+@app.on_event("startup")
+async def startup_event():
+    logger.info("🚀 Starting Smart Fridge Chef API...")
+    await _init_database()
+    _init_faiss()
+    _init_tfidf()
+    _init_embedding()
+    _init_reranker()
+    _init_llm()
+    _log_pipeline_summary()
 
 
 # Health check endpoint
