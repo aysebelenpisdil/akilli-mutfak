@@ -74,7 +74,7 @@ class CFService:
         vectors: Dict[str, Dict[str, float]] = {}
         for user_id, recipe_title, itype in rows:
             weight = _WEIGHTS.get(itype, 0.0)
-            if weight == 0.0:
+            if math.isclose(weight, 0.0, abs_tol=1e-9):
                 continue
             if user_id not in vectors:
                 vectors[user_id] = {}

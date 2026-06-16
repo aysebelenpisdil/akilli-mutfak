@@ -4,6 +4,7 @@ Coordinates Retriever (FAISS) → Reranker → Personalization → Generator (LL
 """
 
 import logging
+import math
 from typing import List, Optional, Dict, Any, Tuple
 from app.services.faiss_service import faiss_service
 from app.services.embedding_service import embedding_service
@@ -181,7 +182,7 @@ class RAGPipeline:
         for recipe, score in reranked:
             interaction = user_history.get(recipe.Title)
             delta = _HISTORY_ADJUSTMENTS.get(interaction, 0.0) if interaction else 0.0
-            if delta != 0.0:
+            if not math.isclose(delta, 0.0, abs_tol=1e-9):
                 logger.debug(f"[personalization] {recipe.Title}: {score:.3f} + {delta:+.2f} ({interaction})")
             adjusted.append((recipe, score + delta))
         adjusted.sort(key=lambda x: x[1], reverse=True)
@@ -196,7 +197,7 @@ class RAGPipeline:
         adjusted = []
         for recipe, score in reranked:
             delta = cf_scores.get(recipe.Title, 0.0)
-            if delta != 0.0:
+            if not math.isclose(delta, 0.0, abs_tol=1e-9):
                 logger.debug(f"[CF] {recipe.Title}: {score:.3f} + {delta:+.3f}")
             adjusted.append((recipe, score + delta))
         adjusted.sort(key=lambda x: x[1], reverse=True)

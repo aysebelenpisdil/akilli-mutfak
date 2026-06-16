@@ -32,17 +32,17 @@ def test_precision_at_k_basic():
 def test_precision_at_k_all_relevant():
     recs = ["A", "B"]
     relevant = {"A", "B"}
-    assert precision_at_k(recs, relevant, 2) == 1.0
+    assert math.isclose(precision_at_k(recs, relevant, 2), 1.0)
 
 
 def test_precision_at_k_no_relevant():
     recs = ["A", "B", "C"]
     relevant = {"X", "Y"}
-    assert precision_at_k(recs, relevant, 3) == 0.0
+    assert math.isclose(precision_at_k(recs, relevant, 3), 0.0, abs_tol=1e-9)
 
 
 def test_precision_at_k_zero_k():
-    assert precision_at_k(["A", "B"], {"A"}, 0) == 0.0
+    assert math.isclose(precision_at_k(["A", "B"], {"A"}, 0), 0.0, abs_tol=1e-9)
 
 
 def test_precision_at_k_k_larger_than_list():
@@ -57,21 +57,21 @@ def test_precision_at_k_k_larger_than_list():
 def test_hit_rate_hit():
     recs = ["A", "B", "C", "D", "E"]
     relevant = {"B", "D"}
-    assert hit_rate_at_k(recs, relevant, 5) == 1.0
+    assert math.isclose(hit_rate_at_k(recs, relevant, 5), 1.0)
 
 
 def test_hit_rate_miss():
     recs = ["A", "B", "C"]
     relevant = {"X"}
-    assert hit_rate_at_k(recs, relevant, 3) == 0.0
+    assert math.isclose(hit_rate_at_k(recs, relevant, 3), 0.0, abs_tol=1e-9)
 
 
 def test_hit_rate_relevant_outside_k():
     # B is at index 3, so not in top-3 but is in top-4
     recs = ["A", "C", "D", "B", "E"]
     relevant = {"B"}
-    assert hit_rate_at_k(recs, relevant, 3) == 0.0
-    assert hit_rate_at_k(recs, relevant, 4) == 1.0
+    assert math.isclose(hit_rate_at_k(recs, relevant, 3), 0.0, abs_tol=1e-9)
+    assert math.isclose(hit_rate_at_k(recs, relevant, 4), 1.0)
 
 
 # ── ndcg_at_k ────────────────────────────────────────────────────────────────
@@ -94,12 +94,12 @@ def test_ndcg_relevant_at_position_2():
 def test_ndcg_no_relevant_in_top_k():
     recs = ["A", "B", "C"]
     relevant = {"X"}
-    assert ndcg_at_k(recs, relevant, 3) == 0.0
+    assert math.isclose(ndcg_at_k(recs, relevant, 3), 0.0, abs_tol=1e-9)
 
 
 def test_ndcg_empty_relevant():
     recs = ["A", "B"]
-    assert ndcg_at_k(recs, set(), 2) == 0.0
+    assert math.isclose(ndcg_at_k(recs, set(), 2), 0.0, abs_tol=1e-9)
 
 
 # ── coverage ─────────────────────────────────────────────────────────────────
@@ -112,15 +112,15 @@ def test_coverage_basic():
 
 def test_coverage_full():
     all_recs = [["A", "B"], ["C", "D"]]
-    assert coverage(all_recs, 4) == 1.0
+    assert math.isclose(coverage(all_recs, 4), 1.0)
 
 
 def test_coverage_zero_catalog():
-    assert coverage([["A"]], 0) == 0.0
+    assert math.isclose(coverage([["A"]], 0), 0.0, abs_tol=1e-9)
 
 
 def test_coverage_empty_recs():
-    assert coverage([], 10) == 0.0
+    assert math.isclose(coverage([], 10), 0.0, abs_tol=1e-9)
 
 
 # ── novelty ──────────────────────────────────────────────────────────────────
@@ -151,4 +151,4 @@ def test_novelty_unknown_item_gets_pop1():
 
 
 def test_novelty_empty():
-    assert novelty([], {}) == 0.0
+    assert math.isclose(novelty([], {}), 0.0, abs_tol=1e-9)
