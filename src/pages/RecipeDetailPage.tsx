@@ -58,6 +58,221 @@ const MEAL_OPTIONS: { value: MealType; label: string }[] = [
 
 const PORTION_OPTIONS = [0.5, 1, 1.5, 2];
 
+interface IngredientSidebarProps {
+    ingredientsList: string[];
+    cleanedList: string[];
+    missingIngredients: string[];
+    allMatchingIngredients: string[];
+    substitutions: Record<string, string[]> | null;
+    subExplanation: string | null;
+    subLoading: boolean;
+    subError: string | null;
+    recipeTitle: string;
+    addItemsFromRecipe: (title: string, items: string[]) => void;
+    onSubstitute: () => void;
+}
+
+function RecipeIngredientSidebar({
+    ingredientsList, cleanedList, missingIngredients, allMatchingIngredients,
+    substitutions, subExplanation, subLoading, subError,
+    recipeTitle, addItemsFromRecipe, onSubstitute,
+}: Readonly<IngredientSidebarProps>) {
+    return (
+        <div className="bg-green-50 rounded-2xl p-6 sm:p-8 sticky top-24">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Malzemeler
+            </h2>
+            {allMatchingIngredients.length > 0 && (
+                <div className="mb-6 pb-4 border-b border-green-200">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Eşleşen Malzemeleriniz:</h3>
+                    <ul className="flex flex-wrap gap-2">
+                        {allMatchingIngredients.map((ing) => (
+                            <li key={ing} className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm">{ing}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            <ul className="space-y-4">
+                {ingredientsList.map((ing, idx) => {
+                    const cleanName = cleanedList[idx] || '';
+                    const kcal = getIngredientCalories(cleanName);
+                    const isMissing = missingIngredients.some(m => m.toLowerCase() === cleanName.toLowerCase());
+                    const subsKey = substitutions
+                        ? Object.keys(substitutions).find(k => k.toLowerCase() === cleanName.toLowerCase())
+                        : undefined;
+                    const subs: string[] | undefined = subsKey ? substitutions![subsKey] : undefined;
+                    return (
+                        <li key={ing}>
+                            <div className="flex items-start">
+                                <div className={`flex-shrink-0 h-6 w-6 rounded-full border flex items-center justify-center mr-3 mt-0.5 text-xs ${isMissing ? 'border-amber-300 text-amber-600 bg-amber-50' : 'border-green-200 text-green-600 bg-white'}`}>
+                                    {idx + 1}
+                                </div>
+                                <div className="flex-1">
+                                    <span className={`leading-relaxed ${isMissing ? 'text-amber-700' : 'text-gray-700'}`}>{ing}</span>
+                                    {kcal !== undefined && <span className="ml-2 text-xs text-gray-400">{kcal} kcal</span>}
+                                    {isMissing && <span className="ml-2 text-xs font-medium text-amber-600">(eksik)</span>}
+                                </div>
+                            </div>
+                            {subs && subs.length > 0 && (
+                                <div className="ml-9 mt-1 flex flex-wrap gap-1">
+                                    {subs.map((sub) => (
+                                        <span key={sub} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">{sub}</span>
+                                    ))}
+                                </div>
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
+            {missingIngredients.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-green-200">
+                    <button
+                        onClick={() => addItemsFromRecipe(recipeTitle, missingIngredients)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors mb-3"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        {missingIngredients.length} eksik malzemeyi alışveriş listesine ekle
+                    </button>
+                </div>
+            )}
+            {missingIngredients.length > 0 && substitutions === null && (
+                <div className="mt-6 pt-4 border-t border-green-200">
+                    <button
+                        onClick={onSubstitute}
+                        disabled={subLoading}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        {subLoading ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                İkame önerileri yükleniyor...
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                {missingIngredients.length} eksik malzeme için ikame öner
+                            </>
+                        )}
+                    </button>
+                    {subError && <p className="mt-2 text-xs text-red-600">{subError}</p>}
+                </div>
+            )}
+            {missingIngredients.length > 0 && substitutions !== null && Object.keys(substitutions).length === 0 && (
+                <div className="mt-6 pt-4 border-t border-green-200">
+                    <p className="text-xs text-amber-600">İkame önerileri şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin.</p>
+                </div>
+            )}
+            {subExplanation && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-xs text-blue-700 leading-relaxed">{subExplanation}</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+interface FeedbackPanelProps {
+    user: object | null;
+    interactionStatus: string | null;
+    interactionLoading: boolean;
+    cookLoading: boolean;
+    cookLogged: boolean;
+    selectedMeal: MealType;
+    selectedPortion: number;
+    setSelectedMeal: (m: MealType) => void;
+    setSelectedPortion: (p: number) => void;
+    handleInteraction: (type: 'like' | 'skip') => void;
+    handleCook: () => void;
+}
+
+function RecipeFeedbackPanel({
+    user, interactionStatus, interactionLoading,
+    cookLoading, cookLogged, selectedMeal, selectedPortion,
+    setSelectedMeal, setSelectedPortion, handleInteraction, handleCook,
+}: Readonly<FeedbackPanelProps>) {
+    if (!user) {
+        return (
+            <div className="bg-gray-50 rounded-xl p-5 text-center">
+                <p className="text-sm text-gray-600 mb-3">Beğeni ve pişirme kaydı için giriş yapın</p>
+                <Link to="/login" className="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-secondary transition-colors">
+                    Giriş Yap
+                </Link>
+            </div>
+        );
+    }
+    const likeSpinner = interactionLoading && interactionStatus !== 'skip';
+    const skipSpinner = interactionLoading && interactionStatus !== 'like';
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={() => handleInteraction('like')}
+                    disabled={interactionLoading}
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${interactionStatus === 'like' ? 'bg-red-50 border-red-300 text-red-600' : 'bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500'}`}
+                >
+                    {likeSpinner ? (
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill={interactionStatus === 'like' ? 'currentColor' : 'none'} stroke="currentColor"><path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" /></svg>
+                    )}
+                    Beğen
+                </button>
+                <button
+                    onClick={() => handleInteraction('skip')}
+                    disabled={interactionLoading}
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${interactionStatus === 'skip' ? 'bg-gray-100 border-gray-400 text-gray-700' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-700'}`}
+                >
+                    {skipSpinner ? (
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                    )}
+                    Atla
+                </button>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-5 space-y-4">
+                <h4 className="text-sm font-semibold text-gray-800">Bunu pişirdim</h4>
+                <div className="flex flex-wrap items-center gap-3">
+                    <div>
+                        <span className="block text-xs text-gray-500 mb-1">Öğün</span>
+                        <div className="flex gap-1">
+                            {MEAL_OPTIONS.map(opt => (
+                                <button key={opt.value} onClick={() => setSelectedMeal(opt.value)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedMeal === opt.value ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary'}`}>
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <span className="block text-xs text-gray-500 mb-1">Porsiyon</span>
+                        <div className="flex gap-1">
+                            {PORTION_OPTIONS.map(p => (
+                                <button key={p} onClick={() => setSelectedPortion(p)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedPortion === p ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary'}`}>
+                                    {p}x
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <button
+                    onClick={handleCook}
+                    disabled={cookLogged || cookLoading}
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed ${cookLogged ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-primary text-white hover:bg-secondary disabled:opacity-70'}`}
+                >
+                    <CookButtonContent cookLoading={cookLoading} cookLogged={cookLogged} />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 const RecipeDetailPage: React.FC = () => {
     const { title } = useParams<{ title: string }>();
     const location = useLocation();
@@ -228,132 +443,19 @@ const RecipeDetailPage: React.FC = () => {
 
                     {/* Sidebar: Ingredients */}
                     <div className="lg:col-span-1">
-                        <div className="bg-green-50 rounded-2xl p-6 sm:p-8 sticky top-24">
-                            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                </svg>
-                                Malzemeler
-                            </h2>
-
-                            {allMatchingIngredients.length > 0 && (
-                                <div className="mb-6 pb-4 border-b border-green-200">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Eşleşen Malzemeleriniz:</h3>
-                                    <ul className="flex flex-wrap gap-2">
-                                        {allMatchingIngredients.map((ing) => (
-                                            <li key={ing} className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm">
-                                                {ing}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            <ul className="space-y-4">
-                                {ingredientsList.map((ing, idx) => {
-                                    const cleanName = cleanedList[idx] || '';
-                                    const kcal = getIngredientCalories(cleanName);
-                                    const isMissing = missingIngredients.some(m => m.toLowerCase() === cleanName.toLowerCase());
-                                    const subsKey = substitutions
-                                        ? Object.keys(substitutions).find(k => k.toLowerCase() === cleanName.toLowerCase())
-                                        : undefined;
-                                    const subs: string[] | undefined = subsKey ? substitutions![subsKey] : undefined;
-
-                                    return (
-                                        <li key={ing}>
-                                            <div className="flex items-start">
-                                                <div className={`flex-shrink-0 h-6 w-6 rounded-full border flex items-center justify-center mr-3 mt-0.5 text-xs ${
-                                                    isMissing
-                                                        ? 'border-amber-300 text-amber-600 bg-amber-50'
-                                                        : 'border-green-200 text-green-600 bg-white'
-                                                }`}>
-                                                    {idx + 1}
-                                                </div>
-                                                <div className="flex-1">
-                                                    <span className={`leading-relaxed ${isMissing ? 'text-amber-700' : 'text-gray-700'}`}>
-                                                        {ing}
-                                                    </span>
-                                                    {kcal !== undefined && (
-                                                        <span className="ml-2 text-xs text-gray-400">
-                                                            {kcal} kcal
-                                                        </span>
-                                                    )}
-                                                    {isMissing && (
-                                                        <span className="ml-2 text-xs font-medium text-amber-600">
-                                                            (eksik)
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {subs && subs.length > 0 && (
-                                                <div className="ml-9 mt-1 flex flex-wrap gap-1">
-                                                    {subs.map((sub) => (
-                                                        <span key={sub} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                                                            {sub}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-
-                            {/* Add to Shopping List Button */}
-                            {missingIngredients.length > 0 && (
-                                <div className="mt-6 pt-4 border-t border-green-200">
-                                    <button
-                                        onClick={() => addItemsFromRecipe(recipe.Title, missingIngredients)}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors mb-3"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                        </svg>
-                                        {missingIngredients.length} eksik malzemeyi alışveriş listesine ekle
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Substitution Button */}
-                            {missingIngredients.length > 0 && substitutions === null && (
-                                <div className="mt-6 pt-4 border-t border-green-200">
-                                    <button
-                                        onClick={handleSubstitution}
-                                        disabled={subLoading}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        {subLoading ? (
-                                            <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                                İkame önerileri yükleniyor...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                </svg>
-                                                {missingIngredients.length} eksik malzeme için ikame öner
-                                            </>
-                                        )}
-                                    </button>
-                                    {subError && (
-                                        <p className="mt-2 text-xs text-red-600">{subError}</p>
-                                    )}
-                                </div>
-                            )}
-                            {missingIngredients.length > 0 && substitutions !== null && Object.keys(substitutions).length === 0 && (
-                                <div className="mt-6 pt-4 border-t border-green-200">
-                                    <p className="text-xs text-amber-600">İkame önerileri şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin.</p>
-                                </div>
-                            )}
-
-                            {/* Substitution Explanation */}
-                            {subExplanation && (
-                                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                                    <p className="text-xs text-blue-700 leading-relaxed">{subExplanation}</p>
-                                </div>
-                            )}
-                        </div>
+                        <RecipeIngredientSidebar
+                            ingredientsList={ingredientsList}
+                            cleanedList={cleanedList}
+                            missingIngredients={missingIngredients}
+                            allMatchingIngredients={allMatchingIngredients}
+                            substitutions={substitutions}
+                            subExplanation={subExplanation}
+                            subLoading={subLoading}
+                            subError={subError}
+                            recipeTitle={recipe.Title}
+                            addItemsFromRecipe={addItemsFromRecipe}
+                            onSubstitute={handleSubstitution}
+                        />
                     </div>
 
                     {/* Main Content: Instructions + Feedback */}
@@ -377,120 +479,19 @@ const RecipeDetailPage: React.FC = () => {
                         {/* Feedback Panel */}
                         <div className="mt-12 pt-8 border-t border-gray-200">
                             <h3 className="text-lg font-bold text-gray-900 mb-4">Bu tarif hakkında</h3>
-
-                            {user ? (
-                                <div className="space-y-6">
-                                    {/* Like / Skip */}
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={() => handleInteraction('like')}
-                                            disabled={interactionLoading}
-                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                interactionStatus === 'like'
-                                                    ? 'bg-red-50 border-red-300 text-red-600'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500'
-                                            }`}
-                                        >
-                                            {interactionLoading && interactionStatus !== 'skip' ? (
-                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                </svg>
-                                            ) : (
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill={interactionStatus === 'like' ? 'currentColor' : 'none'} stroke="currentColor">
-                                                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                                                </svg>
-                                            )}
-                                            Beğen
-                                        </button>
-                                        <button
-                                            onClick={() => handleInteraction('skip')}
-                                            disabled={interactionLoading}
-                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                interactionStatus === 'skip'
-                                                    ? 'bg-gray-100 border-gray-400 text-gray-700'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-700'
-                                            }`}
-                                        >
-                                            {interactionLoading && interactionStatus !== 'like' ? (
-                                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                </svg>
-                                            ) : (
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                                </svg>
-                                            )}
-                                            Atla
-                                        </button>
-                                    </div>
-
-                                    {/* Cook Logging */}
-                                    <div className="bg-gray-50 rounded-xl p-5 space-y-4">
-                                        <h4 className="text-sm font-semibold text-gray-800">Bunu pişirdim</h4>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <div>
-                                                <span className="block text-xs text-gray-500 mb-1">Öğün</span>
-                                                <div className="flex gap-1">
-                                                    {MEAL_OPTIONS.map(opt => (
-                                                        <button
-                                                            key={opt.value}
-                                                            onClick={() => setSelectedMeal(opt.value)}
-                                                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                                                selectedMeal === opt.value
-                                                                    ? 'bg-primary text-white'
-                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-primary'
-                                                            }`}
-                                                        >
-                                                            {opt.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <span className="block text-xs text-gray-500 mb-1">Porsiyon</span>
-                                                <div className="flex gap-1">
-                                                    {PORTION_OPTIONS.map(p => (
-                                                        <button
-                                                            key={p}
-                                                            onClick={() => setSelectedPortion(p)}
-                                                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                                                selectedPortion === p
-                                                                    ? 'bg-primary text-white'
-                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-primary'
-                                                            }`}
-                                                        >
-                                                            {p}x
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={handleCook}
-                                            disabled={cookLogged || cookLoading}
-                                            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed ${
-                                                cookLogged
-                                                    ? 'bg-green-100 text-green-700 border border-green-300'
-                                                    : 'bg-primary text-white hover:bg-secondary disabled:opacity-70'
-                                            }`}
-                                        >
-                                            <CookButtonContent cookLoading={cookLoading} cookLogged={cookLogged} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="bg-gray-50 rounded-xl p-5 text-center">
-                                    <p className="text-sm text-gray-600 mb-3">Beğeni ve pişirme kaydı için giriş yapın</p>
-                                    <Link
-                                        to="/login"
-                                        className="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-secondary transition-colors"
-                                    >
-                                        Giriş Yap
-                                    </Link>
-                                </div>
-                            )}
+                            <RecipeFeedbackPanel
+                                user={user}
+                                interactionStatus={interactionStatus}
+                                interactionLoading={interactionLoading}
+                                cookLoading={cookLoading}
+                                cookLogged={cookLogged}
+                                selectedMeal={selectedMeal}
+                                selectedPortion={selectedPortion}
+                                setSelectedMeal={setSelectedMeal}
+                                setSelectedPortion={setSelectedPortion}
+                                handleInteraction={handleInteraction}
+                                handleCook={handleCook}
+                            />
                         </div>
                     </div>
 

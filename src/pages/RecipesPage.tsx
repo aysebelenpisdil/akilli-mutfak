@@ -2,7 +2,7 @@ import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { useFridge } from '../store/FridgeContext';
 import { useAuth } from '../store/AuthContext';
 import { useShoppingList } from '../store/ShoppingListContext';
-import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CALORIE_FILTER_KEYS, CalorieFilterKey } from '../store/RecipeContext';
+import { useRecipes, CALORIE_RANGES, CALORIE_FILTER_LABELS, CALORIE_FILTER_KEYS } from '../store/RecipeContext';
 import { recordInteraction, deleteInteractionByRecipe, getInteractionHistory } from '../utils/api';
 import RecipeImage from '../components/RecipeImage';
 import RecipeSurvey from '../components/RecipeSurvey';
@@ -204,7 +204,7 @@ const RecipesPage: React.FC = () => {
                                             {availability.coveredCount}/{availability.totalCount} Eşleşme
                                         </span>
                                         {recipe.estimatedCalories != null && (
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg ${calorieBadgeClass(recipe.estimatedCalories!)}`}>
+                                            <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg ${calorieBadgeClass(recipe.estimatedCalories)}`}>
                                                 ~{recipe.estimatedCalories} kcal
                                             </span>
                                         )}
