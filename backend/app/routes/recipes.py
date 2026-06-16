@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
 
-@router.get("/", response_model=dict)
+@router.get("/", response_model=dict, responses={500: {"description": "Internal Server Error"}})
 async def get_recipes(
     ingredients: Optional[str] = Query(None, description="Comma-separated list of ingredients"),
     q: Optional[str] = Query(None, description="Title substring search"),
@@ -63,7 +63,7 @@ async def get_recipes(
         raise HTTPException(status_code=500, detail=f"Tarifler alınamadı: {str(e)}")
 
 
-@router.get("/{title}", response_model=Recipe)
+@router.get("/{title}", response_model=Recipe, responses={404: {"description": "Not Found"}, 500: {"description": "Internal Server Error"}})
 async def get_recipe(title: str):
     """
     Get a specific recipe by title
@@ -81,7 +81,7 @@ async def get_recipe(title: str):
         raise HTTPException(status_code=500, detail=f"Tarif alınamadı: {str(e)}")
 
 
-@router.post("/recommend", response_model=RecipeRecommendResponse)
+@router.post("/recommend", response_model=RecipeRecommendResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal Server Error"}})
 @limiter.limit("30/minute")
 async def recommend_recipes(request: Request, body: RecipeRecommendRequest):
     """
@@ -127,7 +127,7 @@ async def recommend_recipes(request: Request, body: RecipeRecommendRequest):
         raise HTTPException(status_code=500, detail=f"Öneriler oluşturulamadı: {str(e)}")
 
 
-@router.post("/search", response_model=RecipeSearchResponse)
+@router.post("/search", response_model=RecipeSearchResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal Server Error"}})
 @limiter.limit("30/minute")
 async def search_recipes(request: Request, body: RecipeSearchRequest):
     """
@@ -223,7 +223,7 @@ async def search_recipes(request: Request, body: RecipeSearchRequest):
         raise HTTPException(status_code=500, detail=f"Tarif araması başarısız: {str(e)}")
 
 
-@router.post("/rag-recommend", response_model=RAGRecommendResponse)
+@router.post("/rag-recommend", response_model=RAGRecommendResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal Server Error"}})
 @limiter.limit("20/minute")
 async def rag_recommend(
     request: Request,
@@ -322,7 +322,7 @@ async def rag_recommend(
         )
 
 
-@router.post("/substitutions", response_model=SubstitutionResponse)
+@router.post("/substitutions", response_model=SubstitutionResponse, responses={500: {"description": "Internal Server Error"}, 503: {"description": "Service Unavailable"}})
 @limiter.limit("10/minute")
 async def get_substitutions(request: Request, body: SubstitutionRequest):
     """

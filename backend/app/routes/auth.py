@@ -30,7 +30,7 @@ def _set_session_cookie(response: Response, session_id: str):
     )
 
 
-@router.post("/supabase-session", response_model=SessionInfo, responses={503: {"description": "Service Unavailable"}})
+@router.post("/supabase-session", response_model=SessionInfo, responses={400: {"description": "Bad Request"}, 401: {"description": "Unauthorized"}, 500: {"description": "Internal Server Error"}, 503: {"description": "Service Unavailable"}})
 @limiter.limit("10/minute")
 async def create_supabase_session(request: Request, body: SupabaseSessionRequest, response: Response):
     """
@@ -87,7 +87,7 @@ async def create_supabase_session(request: Request, body: SupabaseSessionRequest
     )
 
 
-@router.post("/magic-link", response_model=MagicLinkResponse)
+@router.post("/magic-link", response_model=MagicLinkResponse, responses={503: {"description": "Service Unavailable"}})
 async def request_magic_link(body: MagicLinkRequest):
     user = await auth_service.create_or_get_user(body.email)
     token = await auth_service.generate_magic_link(user["id"])
@@ -110,7 +110,7 @@ async def request_magic_link(body: MagicLinkRequest):
     )
 
 
-@router.post("/verify", response_model=SessionInfo)
+@router.post("/verify", response_model=SessionInfo, responses={400: {"description": "Bad Request"}})
 async def verify_magic_link(body: MagicLinkVerifyRequest, response: Response):
     user = await auth_service.verify_magic_link(body.token)
     if not user:
