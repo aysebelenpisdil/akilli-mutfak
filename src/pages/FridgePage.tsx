@@ -190,7 +190,7 @@ const FridgePage: React.FC = () => {
                                         {availableRecentIngredients.slice(0, 5).map((ingredientName) => {
                                             const details = getIngredientDetails(ingredientName);
                                             // Find the ingredient in the dataset to get count
-                                            const ingredientData = (cleanedIngredients as Array<{name: string}>).find(
+                                            const ingredientData = (cleanedIngredients as Array<{name: string; count: number}>).find(
                                                 (ing) => ing.name === ingredientName
                                             );
                                             return (
