@@ -20,14 +20,14 @@ export class ApiError extends Error {
  */
 const handleApiError = async (response: Response): Promise<never> => {
     let errorMessage = 'Bir hata oluştu';
-    
+
     try {
         const data = await response.json();
         errorMessage = data.detail || data.message || errorMessage;
     } catch {
         errorMessage = `Sunucu hatası: ${response.status} ${response.statusText}`;
     }
-    
+
     throw new ApiError(errorMessage, response.status);
 };
 
@@ -58,11 +58,11 @@ export const getRecipes = async (params?: {
 
         const url = `${API_BASE_URL}/recipes/?${queryParams}`;
         const response = await fetch(url, { credentials: 'include' });
-        
+
         if (!response.ok) {
             await handleApiError(response);
         }
-        
+
         return await response.json();
     } catch (error) {
         if (error instanceof ApiError) {
@@ -81,11 +81,11 @@ export const getRecipeByTitle = async (title: string) => {
             `${API_BASE_URL}/recipes/${encodeURIComponent(title)}`,
             { credentials: 'include' }
         );
-        
+
         if (!response.ok) {
             await handleApiError(response);
         }
-        
+
         return await response.json();
     } catch (error) {
         if (error instanceof ApiError) {
@@ -108,11 +108,11 @@ export const getRecommendations = async (ingredients: string[]) => {
             },
             body: JSON.stringify({ ingredients }),
         });
-        
+
         if (!response.ok) {
             await handleApiError(response);
         }
-        
+
         return await response.json();
     } catch (error) {
         if (error instanceof ApiError) {
@@ -124,9 +124,9 @@ export const getRecommendations = async (ingredients: string[]) => {
 
 /**
  * Get RAG-based recipe recommendations with explanations
- * 
+ *
  * Complete pipeline: Retrieve (FAISS) → Rerank (Cross-encoder) → Generate (Gemini LLM)
- * 
+ *
  * @example
  * ```typescript
  * const response = await getRAGRecommendations({
@@ -136,12 +136,12 @@ export const getRecommendations = async (ingredients: string[]) => {
  *   explain: true,
  *   top_k: 10
  * });
- * 
+ *
  * console.log(response.recipes); // Top-k reranked recipes
  * console.log(response.explanation); // LLM-generated explanation
  * console.log(response.metadata); // Pipeline execution details
  * ```
- * 
+ *
  * @param request - RAG recommendation request with ingredients, preferences, etc.
  * @returns RAG recommendation response with recipes, explanation, and metadata
  */
@@ -164,11 +164,11 @@ export const getRAGRecommendations = async (
                 retrieval_top_k: request.retrieval_top_k ?? 50,
             }),
         });
-        
+
         if (!response.ok) {
             await handleApiError(response);
         }
-        
+
         return await response.json();
     } catch (error) {
         if (error instanceof ApiError) {
@@ -431,7 +431,7 @@ export const getInteractionHistory = async (
     limit = 50, offset = 0
 ): Promise<{ interactions: InteractionResponse[]; count: number }> => {
     const response = await fetch(
-        `${API_BASE_URL}/feedback/history?limit=${limit}&offset=${offset}`,
+        `${API_BASE_URL}/feedback/history?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`,
         { credentials: 'include' }
     );
     if (!response.ok) await handleApiError(response);

@@ -111,7 +111,7 @@ describe('getActiveFilterLabels', () => {
 
     it('vegan true iken vegetarian etiketi çıkmaz', () => {
         const labels = getActiveFilterLabels(
-            { ...noPref, vegan: true, vegetarian: true }, [], undefined
+            { ...noPref, vegan: true, vegetarian: true }, []
         );
         expect(labels).toContain('Vegan');
         expect(labels).not.toContain('Vejetaryen');

@@ -21,6 +21,16 @@ interface FridgeContextType {
     toggleExcludedIngredient: (ingredient: string) => void;
 }
 
+function safeParseStringList(key: string): string[] {
+    try {
+        const raw = localStorage.getItem(key);
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.filter((i): i is string => typeof i === 'string') : [];
+    } catch {
+        return [];
+    }
+}
+
 const FridgeContext = createContext<FridgeContextType | undefined>(undefined);
 
 export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -36,20 +46,24 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         dairyFree: false, nutAllergy: false,
     };
 
-    const [fridgeIngredients, setFridgeIngredients] = useState<string[]>(() => {
-        const saved = localStorage.getItem('fridgeIngredients');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [fridgeIngredients, setFridgeIngredients] = useState<string[]>(() =>
+        safeParseStringList('fridgeIngredients')
+    );
 
     const [dietaryPreferences, setDietaryPreferencesState] = useState<DietaryPreferences>(() => {
-        const saved = localStorage.getItem('dietaryPreferences');
-        return saved ? JSON.parse(saved) : DEFAULT_DIETARY;
+        try {
+            const raw = localStorage.getItem('dietaryPreferences');
+            const parsed: unknown = raw ? JSON.parse(raw) : null;
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return DEFAULT_DIETARY;
+            return { ...DEFAULT_DIETARY, ...Object.fromEntries(Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, Boolean(v)])) } as DietaryPreferences;
+        } catch {
+            return DEFAULT_DIETARY;
+        }
     });
 
-    const [excludedIngredients, setExcludedIngredients] = useState<string[]>(() => {
-        const saved = localStorage.getItem('excludedIngredients');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [excludedIngredients, setExcludedIngredients] = useState<string[]>(() =>
+        safeParseStringList('excludedIngredients')
+    );
 
     const fetchFridgeFromApi = useCallback(async () => {
         skipFridgeSaveRef.current = true; // set BEFORE state update so save effect skips
@@ -80,8 +94,7 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             fetchFridgeFromApi();
             fetchPreferencesFromApi();
         } else {
-            const saved = localStorage.getItem('fridgeIngredients');
-            setFridgeIngredients(saved ? JSON.parse(saved) : []);
+            setFridgeIngredients(safeParseStringList('fridgeIngredients'));
         }
     }, [user?.id, fetchFridgeFromApi, fetchPreferencesFromApi]);
 

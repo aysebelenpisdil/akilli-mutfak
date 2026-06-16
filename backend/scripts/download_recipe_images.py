@@ -109,7 +109,7 @@ def _process_recipe(ddgs, img_name: str, title: str, existing: set) -> bool:
         print(f"         ✅  kaydedildi ({size_kb} KB)")
         existing.add(dest.name)
         return True
-    print(f"         ❌  bulunamadı")
+    print("         ❌  bulunamadı")
     return False
 
 

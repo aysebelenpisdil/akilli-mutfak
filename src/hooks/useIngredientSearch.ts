@@ -83,9 +83,9 @@ function matchesQuery(
   // Multi-word support (word order independent)
   const queryWords = normalizedQuery.split(' ').filter(w => w.length > 0);
   const nameWords = name.split(' ').filter(w => w.length > 0);
-  
+
   if (queryWords.length > 1 && nameWords.length > 1) {
-    const allWordsMatch = queryWords.every(qw => 
+    const allWordsMatch = queryWords.every(qw =>
       nameWords.some(nw => nw.includes(qw) || qw.includes(nw))
     );
     if (allWordsMatch) {
@@ -97,7 +97,7 @@ function matchesQuery(
   if (enableFuzzy && normalizedQuery.length >= 4) {
     const distance = levenshteinDistance(normalizedQuery, name);
     const maxDistance = Math.floor(normalizedQuery.length / 3); // Allow 1 typo per 3 chars
-    
+
     if (distance <= maxDistance) {
       return { matches: true, score: 600 - (distance * 50), matchType: 'fuzzy' };
     }
@@ -199,7 +199,7 @@ export function useIngredientSearch(
       .filter(item => item.matches);
 
     // Sort by score (higher = better) and frequency
-    const sorted = matchedIngredients.sort((a, b) => {
+    const sorted = [...matchedIngredients].sort((a, b) => {
       // Primary: Match score
       if (a.score !== b.score) {
         return b.score - a.score;
@@ -232,5 +232,3 @@ export function useTrackIngredient() {
     addRecentIngredient(ingredient);
   }, []);
 }
-
-

@@ -13,6 +13,13 @@ import { parseIngredientList, computeRecipeAvailability, type RecipeAvailability
 
 const RECIPES_PER_PAGE = 12;
 
+function calorieBadgeClass(calories: number): string {
+    const label = getCalorieLabel(calories);
+    if (label === 'Düşük') return 'bg-green-500 text-white';
+    if (label === 'Orta') return 'bg-orange-400 text-white';
+    return 'bg-red-500 text-white';
+}
+
 const RecipesPage: React.FC = () => {
     const { fridgeIngredients, dietaryPreferences, excludedIngredients } = useFridge();
     const { user } = useAuth();
@@ -163,9 +170,9 @@ const RecipesPage: React.FC = () => {
                         {metadata && (
                             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                                 <span className="text-gray-500">Pipeline:</span>
-                                {!!metadata.retriever_used && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">FAISS</span>}
-                                {!!metadata.reranker_used && <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Reranker</span>}
-                                {!!metadata.llm_used && <span className="px-2 py-1 bg-green-100 text-green-800 rounded">LLM</span>}
+                                {Boolean(metadata.retriever_used) && <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">FAISS</span>}
+                                {Boolean(metadata.reranker_used) && <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Reranker</span>}
+                                {Boolean(metadata.llm_used) && <span className="px-2 py-1 bg-green-100 text-green-800 rounded">LLM</span>}
                                 <span className="text-gray-500">({metadata.retrieval_count as number} &rarr; {metadata.reranked_count as number})</span>
                             </div>
                         )}
@@ -260,7 +267,7 @@ const RecipesPage: React.FC = () => {
             ) : (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {displayedRecipes.map((recipe, index) => {
+                        {displayedRecipes.map((recipe) => {
                             const availability = availabilityMap.get(recipe.Title)!;
                             return (
                                 <Link
@@ -282,11 +289,7 @@ const RecipesPage: React.FC = () => {
                                                 {availability.coveredCount}/{availability.totalCount} Eşleşme
                                             </span>
                                             {recipe.estimatedCalories != null && (
-                                                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg ${
-                                                    getCalorieLabel(recipe.estimatedCalories) === 'Düşük' ? 'bg-green-500 text-white' :
-                                                    getCalorieLabel(recipe.estimatedCalories) === 'Orta' ? 'bg-orange-400 text-white' :
-                                                    'bg-red-500 text-white'
-                                                }`}>
+                                                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg ${calorieBadgeClass(recipe.estimatedCalories as number)}`}>
                                                     ~{recipe.estimatedCalories} kcal
                                                 </span>
                                             )}

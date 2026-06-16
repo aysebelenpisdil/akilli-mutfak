@@ -11,6 +11,12 @@ import { useAuth } from '../store/AuthContext';
 import { useShoppingList } from '../store/ShoppingListContext';
 import { getSubstitutions, recordInteraction, deleteInteractionByRecipe, logConsumption, getRecipeStatus, getRecipeByTitle, type ApiError } from '../utils/api';
 
+function calorieLabelBadgeClass(label: string | null): string {
+    if (label === 'Düşük') return 'bg-green-500 text-white';
+    if (label === 'Orta') return 'bg-orange-400 text-white';
+    return 'bg-red-500 text-white';
+}
+
 const MEAL_OPTIONS: { value: MealType; label: string }[] = [
     { value: 'breakfast', label: 'Kahvaltı' },
     { value: 'lunch', label: 'Öğle' },
@@ -176,11 +182,7 @@ const RecipeDetailPage: React.FC = () => {
                     </h1>
                     {totalCalories != null && (
                         <div className="mt-3 flex items-center gap-3">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow ${
-                                calorieLabel === 'Düşük' ? 'bg-green-500 text-white'
-                                : calorieLabel === 'Orta' ? 'bg-orange-400 text-white'
-                                : 'bg-red-500 text-white'
-                            }`}>
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold shadow ${calorieLabelBadgeClass(calorieLabel)}`}>
                                 ~{totalCalories} kcal
                             </span>
                             <span className="text-white/70 text-sm">{calorieLabel} kalorili</span>
@@ -397,7 +399,7 @@ const RecipeDetailPage: React.FC = () => {
                                         <h4 className="text-sm font-semibold text-gray-800">Bunu pişirdim</h4>
                                         <div className="flex flex-wrap items-center gap-3">
                                             <div>
-                                                <label className="block text-xs text-gray-500 mb-1">Öğün</label>
+                                                <span className="block text-xs text-gray-500 mb-1">Öğün</span>
                                                 <div className="flex gap-1">
                                                     {MEAL_OPTIONS.map(opt => (
                                                         <button
@@ -415,7 +417,7 @@ const RecipeDetailPage: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-gray-500 mb-1">Porsiyon</label>
+                                                <span className="block text-xs text-gray-500 mb-1">Porsiyon</span>
                                                 <div className="flex gap-1">
                                                     {PORTION_OPTIONS.map(p => (
                                                         <button

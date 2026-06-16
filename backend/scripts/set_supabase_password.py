@@ -82,7 +82,7 @@ else:
     print(f"[2/3] Kullanıcı bulundu: {user_id}")
 
 # --- 3. Şifreyi güncelle ----------------------------------------------------
-print(f"[3/3] Şifre güncelleniyor...")
+print("[3/3] Şifre güncelleniyor...")
 update_url = f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}"
 payload = json.dumps({"password": NEW_PASSWORD, "email_confirm": True}).encode()
 req = urllib.request.Request(

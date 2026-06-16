@@ -57,7 +57,7 @@ def main():
             existing.add(img_name)
             downloaded += 1
         else:
-            print(f"       ❌  indirilemedi")
+            print("       ❌  indirilemedi")
 
     print(f"\nİndirilen: {downloaded}  |  Atlanan: {skipped}")
 
