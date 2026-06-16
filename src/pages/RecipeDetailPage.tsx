@@ -103,7 +103,7 @@ function RecipeIngredientSidebar({
                     const subsKey = substitutions
                         ? Object.keys(substitutions).find(k => k.toLowerCase() === cleanName.toLowerCase())
                         : undefined;
-                    const subs: string[] | undefined = subsKey ? substitutions![subsKey] : undefined;
+                    const subs: string[] | undefined = subsKey ? substitutions?.[subsKey] : undefined;
                     return (
                         <li key={ing}>
                             <div className="flex items-start">

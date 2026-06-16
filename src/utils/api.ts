@@ -402,7 +402,8 @@ export const deleteInteractionByRecipe = async (
 };
 
 export const deleteInteraction = async (id: number): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/feedback/interaction/${encodeURIComponent(id)}`, {
+    const safeId = Math.trunc(Number(id));
+    const response = await fetch(`${API_BASE_URL}/feedback/interaction/${encodeURIComponent(safeId)}`, {
         method: 'DELETE',
         credentials: 'include',
     });

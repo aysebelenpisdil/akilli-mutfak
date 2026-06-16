@@ -100,7 +100,9 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         if (!user) {
-            const sanitized = Array.isArray(fridgeIngredients) ? fridgeIngredients.filter(i => typeof i === 'string') : [];
+            const sanitized: string[] = Array.isArray(fridgeIngredients)
+                ? fridgeIngredients.reduce<string[]>((acc, i) => { if (typeof i === 'string') acc.push(String(i)); return acc; }, [])
+                : [];
             try { localStorage.setItem('fridgeIngredients', JSON.stringify(sanitized)); } catch { /* storage unavailable */ }
             return;
         }
@@ -120,8 +122,16 @@ export const FridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         if (!user) {
-            const safeDietary = Object.fromEntries(Object.entries(dietaryPreferences).map(([k, v]) => [String(k), Boolean(v)]));
-            const sanitizedExcluded = Array.isArray(excludedIngredients) ? excludedIngredients.filter(i => typeof i === 'string') : [];
+            const safeDietary = {
+                glutenFree: Boolean(dietaryPreferences.glutenFree),
+                vegetarian: Boolean(dietaryPreferences.vegetarian),
+                vegan: Boolean(dietaryPreferences.vegan),
+                dairyFree: Boolean(dietaryPreferences.dairyFree),
+                nutAllergy: Boolean(dietaryPreferences.nutAllergy),
+            };
+            const sanitizedExcluded: string[] = Array.isArray(excludedIngredients)
+                ? excludedIngredients.reduce<string[]>((acc, i) => { if (typeof i === 'string') acc.push(String(i)); return acc; }, [])
+                : [];
             try {
                 localStorage.setItem('dietaryPreferences', JSON.stringify(safeDietary));
                 localStorage.setItem('excludedIngredients', JSON.stringify(sanitizedExcluded));
